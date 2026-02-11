@@ -1,0 +1,23 @@
+# Production gitignore (deploy branch)
+.env.php
+node_modules/
+*.local
+nul
+
+# Source files (not needed in production)
+*.tsx
+*.ts
+components/
+contexts/
+services/
+vite.config.ts
+tsconfig.json
+package.json
+package-lock.json
+metadata.json
+dist/
+
+# Sensitive
+*.xlsx
+Username*
+.claude/
