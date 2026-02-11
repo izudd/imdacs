@@ -1,0 +1,8 @@
+{
+  "name": "IMDACS - Internal Marketing Daily Activity & Client Progress System",
+  "description": "A comprehensive internal system for tracking marketing activities, client progress, field visits, and mandatory End-of-Day reporting with manager oversight.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

@@ -1,0 +1,20 @@
+RewriteEngine On
+
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# If request is for an existing file or directory, serve it directly
+# This handles: built assets (js, css, images), uploads, and PHP API files
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Route /api/* requests to the api/ directory PHP files
+RewriteRule ^api/(.*)$ api/$1 [L]
+
+# Route /uploads/* to uploads directory
+RewriteRule ^uploads/(.*)$ uploads/$1 [L]
+
+# Everything else -> React SPA (index.html)
+RewriteRule ^ index.html [L]

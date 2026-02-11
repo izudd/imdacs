@@ -1,0 +1,318 @@
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { User, UserRole, Client, Activity } from './types';
+import { useAuth } from './contexts/AuthContext';
+import * as api from './services/apiService';
+import { ImportResult } from './services/apiService';
+import Login from './components/Login';
+import Dashboard from './components/Dashboard';
+import ClientManager from './components/ClientManager';
+import DailyLog from './components/DailyLog';
+import EndDayReport from './components/EndDayReport';
+import ManagerView from './components/ManagerView';
+import QuickLog from './components/QuickLog';
+
+const App: React.FC = () => {
+  const { user: currentUser, isLoading: authLoading, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [clients, setClients] = useState<Client[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showEodReminder, setShowEodReminder] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    if (!currentUser) return;
+    const [clientsRes, activitiesRes, usersRes] = await Promise.allSettled([
+      api.getClients(),
+      api.getActivities(),
+      api.getUsers()
+    ]);
+    if (clientsRes.status === 'fulfilled') setClients(clientsRes.value);
+    else console.error('Failed to fetch clients:', clientsRes.reason);
+    if (activitiesRes.status === 'fulfilled') setActivities(activitiesRes.value);
+    else console.error('Failed to fetch activities:', activitiesRes.reason);
+    if (usersRes.status === 'fulfilled') setUsers(usersRes.value);
+    else console.error('Failed to fetch users:', usersRes.reason);
+  }, [currentUser]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleAddClient = async (clientData: Partial<Client>) => {
+    try {
+      const newClient = await api.addClient(clientData);
+      setClients(prev => [newClient, ...prev]);
+    } catch (err: any) {
+      alert('Gagal menambah client: ' + err.message);
+    }
+  };
+
+  const handleEditClient = async (clientData: Partial<Client> & { id: string }) => {
+    try {
+      const updatedClient = await api.updateClient(clientData);
+      setClients(prev => prev.map(c => c.id === updatedClient.id ? updatedClient : c));
+    } catch (err: any) {
+      alert('Gagal mengupdate client: ' + err.message);
+    }
+  };
+
+  const handleAddActivity = async (activityData: Partial<Activity>) => {
+    try {
+      const newActivity = await api.addActivity(activityData);
+      setActivities(prev => [newActivity, ...prev]);
+    } catch (err: any) {
+      alert('Gagal menambah aktivitas: ' + err.message);
+    }
+  };
+
+  const handleQuickAddClient = async (name: string, estimatedValue?: number): Promise<Client> => {
+    const newClient = await api.quickAddClient(name, estimatedValue);
+    setClients(prev => [newClient, ...prev]);
+    return newClient;
+  };
+
+  const handleImportClients = async (clientsData: Partial<Client>[]): Promise<ImportResult> => {
+    const result = await api.importClients(clientsData);
+    if (result.imported.length > 0) {
+      setClients(prev => [...result.imported, ...prev]);
+    }
+    return result;
+  };
+
+  const handleRefreshData = () => {
+    fetchData();
+  };
+
+  // Loading screen
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center">
+        <div className="text-center animate-fade-in">
+          <div className="relative mb-6">
+            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto shadow-2xl shadow-indigo-500/30">
+              <i className="fa-solid fa-bullseye text-white text-3xl"></i>
+            </div>
+            <div className="absolute -inset-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl opacity-20 animate-ping"></div>
+          </div>
+          <h1 className="text-2xl font-black text-white tracking-tight mb-1">IMDACS</h1>
+          <div className="flex items-center justify-center gap-1.5 mt-3">
+            <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+            <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+            <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <Login />;
+  }
+
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-grid-2', mobileIcon: 'fa-solid fa-grid-2', roles: [UserRole.MARKETING, UserRole.MANAGER] },
+    { id: 'quicklog', label: 'Quick Log', icon: 'fa-solid fa-bolt', mobileIcon: 'fa-solid fa-bolt', roles: [UserRole.MARKETING] },
+    { id: 'clients', label: 'Clients', icon: 'fa-solid fa-building', mobileIcon: 'fa-solid fa-building', roles: [UserRole.MARKETING, UserRole.MANAGER] },
+    { id: 'activity', label: 'Daily Log', icon: 'fa-solid fa-list-check', mobileIcon: 'fa-solid fa-list-check', roles: [UserRole.MARKETING] },
+    { id: 'report', label: 'EOD Report', icon: 'fa-solid fa-file-lines', mobileIcon: 'fa-solid fa-file-lines', roles: [UserRole.MARKETING] },
+    { id: 'oversight', label: 'Oversight', icon: 'fa-solid fa-chart-line', mobileIcon: 'fa-solid fa-chart-line', roles: [UserRole.MANAGER] },
+  ];
+
+  const filteredNav = navItems.filter(item => item.roles.includes(currentUser.role as UserRole));
+
+  const handleNavClick = (id: string) => {
+    setActiveTab(id);
+    setSidebarOpen(false);
+  };
+
+  return (
+    <div className="min-h-screen flex bg-slate-50/50">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden animate-fade-in"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Desktop fixed, Mobile slide-in */}
+      <aside className={`
+        fixed lg:sticky top-0 left-0 h-screen w-72 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950
+        text-white flex flex-col z-50 shadow-2xl
+        sidebar-transition
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        {/* Brand */}
+        <div className="p-6 pb-2">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25">
+              <i className="fa-solid fa-bullseye text-white text-lg"></i>
+            </div>
+            <div>
+              <h1 className="text-xl font-black tracking-tight">IMDACS</h1>
+              <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-[0.2em]">Marketing System</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Date info */}
+        <div className="px-6 py-3">
+          <div className="bg-white/5 rounded-xl px-4 py-2.5 border border-white/5">
+            <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Today</p>
+            <p className="text-sm text-white font-semibold">
+              {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-2 overflow-y-auto no-scrollbar">
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2">Menu</p>
+          <div className="space-y-1">
+            {filteredNav.map(item => (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                  activeTab === item.id
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30'
+                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  activeTab === item.id ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/5'
+                }`}>
+                  <i className={`${item.icon} text-sm`}></i>
+                </div>
+                <span className="font-semibold text-sm">{item.label}</span>
+                {activeTab === item.id && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white"></div>
+                )}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {/* User card */}
+        <div className="p-4 mt-auto">
+          <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="relative">
+                <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500/50 object-cover" alt="Avatar" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-slate-900"></div>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold truncate">{currentUser.name}</p>
+                <p className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wider">{currentUser.role}</p>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-red-500/10"
+            >
+              <i className="fa-solid fa-arrow-right-from-bracket text-[10px]"></i>
+              Logout
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
+        {/* Top header for mobile */}
+        <header className="sticky top-0 z-30 bg-white/80 glass-light border-b border-slate-100 px-4 py-3 lg:hidden">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors"
+            >
+              <i className="fa-solid fa-bars text-slate-600"></i>
+            </button>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <i className="fa-solid fa-bullseye text-white text-xs"></i>
+              </div>
+              <h1 className="text-lg font-black tracking-tight text-slate-800">IMDACS</h1>
+            </div>
+            <div className="relative">
+              <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-100 object-cover" alt="Avatar" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+            </div>
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 lg:pb-8">
+          <div className="max-w-7xl mx-auto animate-fade-in">
+            {activeTab === 'dashboard' && <Dashboard user={currentUser} clients={clients} activities={activities} users={users} />}
+            {activeTab === 'quicklog' && <QuickLog user={currentUser} clients={clients} activities={activities} onAddActivity={handleAddActivity} onQuickAddClient={handleQuickAddClient} onEditClient={handleEditClient} onRefresh={handleRefreshData} />}
+            {activeTab === 'clients' && <ClientManager user={currentUser} clients={clients} users={users} activities={activities} onAddClient={handleAddClient} onEditClient={handleEditClient} onImportClients={handleImportClients} />}
+            {activeTab === 'activity' && <DailyLog user={currentUser} clients={clients} activities={activities} onAddActivity={handleAddActivity} onRefresh={handleRefreshData} />}
+            {activeTab === 'report' && <EndDayReport user={currentUser} clients={clients} activities={activities} onRefresh={handleRefreshData} onNavigate={setActiveTab} />}
+            {activeTab === 'oversight' && <ManagerView user={currentUser} users={users} clients={clients} activities={activities} />}
+          </div>
+        </main>
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/90 glass border-t border-slate-200/80 z-30 lg:hidden pb-safe">
+          <div className="flex items-center justify-around px-2 py-1">
+            {filteredNav.map(item => (
+              <button
+                key={item.id}
+                onClick={() => handleNavClick(item.id)}
+                className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all min-w-0 flex-1 ${
+                  activeTab === item.id
+                    ? 'text-indigo-600'
+                    : 'text-slate-400'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  activeTab === item.id
+                    ? 'bg-indigo-50 scale-110'
+                    : ''
+                }`}>
+                  <i className={`${item.mobileIcon} text-base`}></i>
+                </div>
+                <span className={`text-[10px] font-bold truncate ${activeTab === item.id ? 'text-indigo-600' : 'text-slate-400'}`}>
+                  {item.label}
+                </span>
+                {activeTab === item.id && (
+                  <div className="w-4 h-0.5 bg-indigo-600 rounded-full"></div>
+                )}
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
+
+      {/* EOD Floating Reminder */}
+      {currentUser.role === UserRole.MARKETING && activeTab !== 'report' && showEodReminder && (
+        <div className="fixed bottom-20 lg:bottom-6 right-4 lg:right-6 bg-white shadow-2xl shadow-slate-900/10 rounded-2xl p-4 border border-slate-100 flex items-start gap-3 z-40 max-w-xs animate-slide-up">
+          <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 text-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/25">
+            <i className="fa-solid fa-bell text-sm"></i>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-slate-800">EOD Report Reminder</p>
+            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Jangan lupa submit laporan harian Anda sebelum jam 17:00.</p>
+            <button
+              onClick={() => { setActiveTab('report'); setShowEodReminder(false); }}
+              className="mt-2 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+            >
+              Submit Sekarang <i className="fa-solid fa-arrow-right text-[9px]"></i>
+            </button>
+          </div>
+          <button
+            onClick={() => setShowEodReminder(false)}
+            className="text-slate-300 hover:text-slate-500 p-0.5 flex-shrink-0"
+          >
+            <i className="fa-solid fa-xmark text-xs"></i>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
