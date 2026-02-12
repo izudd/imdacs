@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import logoImg from '../public/logo.jpeg';
 
 const Login: React.FC = () => {
   const { login, isLoading, error } = useAuth();
@@ -44,7 +45,7 @@ const Login: React.FC = () => {
       {!splashDone && (
         <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center animate-[logoZoom_2s_cubic-bezier(0.4,0,0.2,1)_forwards]">
           <img
-            src="/logo.jpeg"
+            src={logoImg}
             alt="IMDACS Logo"
             className="w-52 h-52 sm:w-64 sm:h-64 object-contain rounded-3xl shadow-2xl shadow-indigo-500/20"
           />
@@ -57,7 +58,7 @@ const Login: React.FC = () => {
         <div className="text-center mb-8">
           <div className="relative inline-block mb-4">
             <img
-              src="/logo.jpeg"
+              src={logoImg}
               alt="IMDACS Logo"
               className="w-20 h-20 rounded-2xl mx-auto shadow-2xl shadow-indigo-500/30 object-contain rotate-3 hover:rotate-0 transition-transform"
             />

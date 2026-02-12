@@ -12,6 +12,7 @@ import EndDayReport from './components/EndDayReport';
 import ManagerView from './components/ManagerView';
 import TeamView from './components/TeamView';
 import QuickLog from './components/QuickLog';
+import logoImg from './public/logo.jpeg';
 
 const APP_VERSION = '1.3.0';
 const EOD_REMINDER_HOUR = 16;
@@ -140,7 +141,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center">
         <div className="text-center animate-fade-in">
           <div className="relative mb-6">
-            <img src="/logo.jpeg" alt="IMDACS" className="w-20 h-20 rounded-2xl mx-auto shadow-2xl shadow-indigo-500/30 object-contain" />
+            <img src={logoImg} alt="IMDACS" className="w-20 h-20 rounded-2xl mx-auto shadow-2xl shadow-indigo-500/30 object-contain" />
             <div className="absolute -inset-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl opacity-20 animate-ping"></div>
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight mb-1">IMDACS</h1>
@@ -195,7 +196,7 @@ const App: React.FC = () => {
         {/* Brand */}
         <div className="p-6 pb-2">
           <div className="flex items-center gap-3 mb-1">
-            <img src="/logo.jpeg" alt="IMDACS" className="w-10 h-10 rounded-xl shadow-lg shadow-indigo-500/25 object-contain" />
+            <img src={logoImg} alt="IMDACS" className="w-10 h-10 rounded-xl shadow-lg shadow-indigo-500/25 object-contain" />
             <div>
               <h1 className="text-xl font-black tracking-tight">IMDACS</h1>
               <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-[0.2em]">Marketing System</p>
@@ -281,7 +282,7 @@ const App: React.FC = () => {
               <i className="fa-solid fa-bars text-slate-600"></i>
             </button>
             <div className="flex items-center gap-2">
-              <img src="/logo.jpeg" alt="IMDACS" className="w-8 h-8 rounded-lg object-contain" />
+              <img src={logoImg} alt="IMDACS" className="w-8 h-8 rounded-lg object-contain" />
               <h1 className="text-lg font-black tracking-tight text-slate-800">IMDACS</h1>
               <span className="text-[9px] text-slate-400 font-semibold bg-slate-100 px-1.5 py-0.5 rounded-full ml-1">v{APP_VERSION}</span>
             </div>
