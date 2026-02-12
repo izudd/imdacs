@@ -31,6 +31,20 @@ if ($method === 'GET') {
         if ($auth['role'] === 'MARKETING') {
             $conditions[] = "marketing_id = ?";
             $params[] = $auth['id'];
+        } elseif ($auth['role'] === 'SUPERVISOR') {
+            if (!empty($_GET['scope']) && $_GET['scope'] === 'team') {
+                // Team scope: self + team members
+                $teamStmt = $db->prepare("SELECT id FROM users WHERE supervisor_id = ? OR id = ?");
+                $teamStmt->execute([$auth['id'], $auth['id']]);
+                $teamIds = array_column($teamStmt->fetchAll(), 'id');
+                $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+                $conditions[] = "marketing_id IN ($placeholders)";
+                $params = array_merge($params, $teamIds);
+            } else {
+                // Default: own data only
+                $conditions[] = "marketing_id = ?";
+                $params[] = $auth['id'];
+            }
         } elseif (!empty($_GET['marketing_id'])) {
             $conditions[] = "marketing_id = ?";
             $params[] = $_GET['marketing_id'];

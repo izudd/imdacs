@@ -49,7 +49,8 @@ try {
             username VARCHAR(50) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
             name VARCHAR(100) NOT NULL,
-            role ENUM('MARKETING','MANAGER') NOT NULL,
+            role ENUM('MARKETING','MANAGER','SUPERVISOR') NOT NULL,
+            supervisor_id VARCHAR(10) DEFAULT NULL,
             avatar VARCHAR(255) DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -139,11 +140,15 @@ try {
     $passwordHash = password_hash('password123', PASSWORD_BCRYPT);
 
     $stmt = $pdo->prepare("INSERT INTO users (id, username, password_hash, name, role, avatar) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->execute(['m1', 'delfa', $passwordHash, 'Delfa Henrizal', 'MARKETING', 'https://ui-avatars.com/api/?name=Delfa+Henrizal&background=6366f1&color=fff&size=200']);
+    $stmt->execute(['m1', 'delfa', $passwordHash, 'Delfa Henrizal', 'SUPERVISOR', 'https://ui-avatars.com/api/?name=Delfa+Henrizal&background=6366f1&color=fff&size=200']);
     $stmt->execute(['m2', 'abraham', $passwordHash, 'Abraham Tito', 'MARKETING', 'https://ui-avatars.com/api/?name=Abraham+Tito&background=8b5cf6&color=fff&size=200']);
     $stmt->execute(['m3', 'zachariyas', $passwordHash, 'Zhachariyas', 'MARKETING', 'https://ui-avatars.com/api/?name=Zhachariyas&background=ec4899&color=fff&size=200']);
     $stmt->execute(['mgr1', 'budiandru', $passwordHash, 'Prof. Dr. Budiandru, S.H., Ak., CA., CPA., CFI.', 'MANAGER', 'https://ui-avatars.com/api/?name=Budiandru&background=1e293b&color=fff&size=200']);
     echo "<p>✅ 4 users seeded - password: <b>password123</b></p>";
+
+    // Assign team members to supervisor
+    $pdo->exec("UPDATE users SET supervisor_id = 'm1' WHERE id IN ('m2', 'm3')");
+    echo "<p>✅ Abraham & Ryas assigned to Delfa's team (SPV)</p>";
 
     // No sample clients - ready for real data
     echo "<p>✅ Database ready (no dummy data)</p>";
@@ -152,7 +157,7 @@ try {
     echo "<p>You can now use the IMDACS application.</p>";
     echo "<p><strong>Login credentials:</strong></p>";
     echo "<ul>";
-    echo "<li>delfa / password123 (Marketing)</li>";
+    echo "<li>delfa / password123 (Supervisor)</li>";
     echo "<li>abraham / password123 (Marketing)</li>";
     echo "<li>zachariyas / password123 (Marketing)</li>";
     echo "<li>budiandru / password123 (Manager)</li>";

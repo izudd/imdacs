@@ -11,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     $db = getDB();
-    $stmt = $db->prepare("SELECT id, name, role, avatar FROM users WHERE id = ?");
+    $stmt = $db->prepare("SELECT id, name, role, supervisor_id, avatar FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
 
@@ -23,7 +23,13 @@ try {
 
     echo json_encode([
         'authenticated' => true,
-        'user' => $user
+        'user' => [
+            'id' => $user['id'],
+            'name' => $user['name'],
+            'role' => $user['role'],
+            'avatar' => $user['avatar'],
+            'supervisorId' => $user['supervisor_id'] ?? null
+        ]
     ]);
 
 } catch (PDOException $e) {
