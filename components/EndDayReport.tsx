@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Client, Activity, ActivityType, ClientStatus, ClientProgressUpdate, ReportStatus } from '../types';
+import { User, Client, Activity, ActivityType, ReportStatus } from '../types';
 import * as api from '../services/apiService';
 
 interface EndDayReportProps {
@@ -11,6 +11,14 @@ interface EndDayReportProps {
   onNavigate?: (tab: string) => void;
 }
 
+const ACTIVITY_COLORS: Record<string, { bg: string; icon: string; text: string; border: string }> = {
+  CHAT_DM: { bg: 'bg-green-50', icon: 'fa-brands fa-whatsapp text-green-500', text: 'text-green-700', border: 'border-green-200' },
+  CALL: { bg: 'bg-blue-50', icon: 'fa-solid fa-phone text-blue-500', text: 'text-blue-700', border: 'border-blue-200' },
+  VISIT: { bg: 'bg-purple-50', icon: 'fa-solid fa-location-dot text-purple-500', text: 'text-purple-700', border: 'border-purple-200' },
+  MEETING: { bg: 'bg-indigo-50', icon: 'fa-solid fa-users text-indigo-500', text: 'text-indigo-700', border: 'border-indigo-200' },
+  POSTING: { bg: 'bg-orange-50', icon: 'fa-solid fa-share-nodes text-orange-500', text: 'text-orange-700', border: 'border-orange-200' },
+};
+
 const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, onRefresh, onNavigate }) => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -18,15 +26,14 @@ const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, 
   const [existingStatus, setExistingStatus] = useState<string>('');
 
   const today = new Date().toISOString().split('T')[0];
-  const myTodayActivities = activities.filter(a => a.marketingId === user.id && a.date === today);
+  const myTodayActivities = activities
+    .filter(a => a.marketingId === user.id && a.date === today)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
   const myClients = clients.filter(c => c.marketingId === user.id);
 
   const [summary, setSummary] = useState('');
   const [constraints, setConstraints] = useState('');
   const [planTomorrow, setPlanTomorrow] = useState('');
-  const [progressUpdates, setProgressUpdates] = useState<Array<{
-    clientId: string; clientName: string; prevStatus: ClientStatus; newStatus: ClientStatus; result: string;
-  }>>([]);
 
   // Check if already submitted today
   useEffect(() => {
@@ -35,61 +42,55 @@ const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, 
         const r = reports[0];
         setAlreadySubmitted(true);
         setExistingStatus(r.status);
+        if (r.summary) setSummary(r.summary);
+        if (r.constraints) setConstraints(r.constraints);
+        if (r.planTomorrow) setPlanTomorrow(r.planTomorrow);
       }
     }).catch(console.error);
   }, [today, user.id]);
 
-  // Stable key: only rebuild when client list membership changes, not on every render
-  const clientKey = myClients.map(c => `${c.id}:${c.status}`).join(',');
-  useEffect(() => {
-    const updates = myClients.map(c => ({
-      clientId: c.id, clientName: c.name, prevStatus: c.status, newStatus: c.status, result: '',
-    }));
-    setProgressUpdates(updates);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientKey]);
-
-  const handleProgressChange = (index: number, field: string, value: string) => {
-    setProgressUpdates(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
-
   const handleSubmit = async () => {
     if (!summary.trim()) { alert('Ringkasan kegiatan wajib diisi'); return; }
+    if (myTodayActivities.length === 0) {
+      if (!confirm('Belum ada aktivitas hari ini. Tetap submit report?')) return;
+    }
     setIsSaving(true);
     try {
       await api.submitReport({
         date: today, marketingId: user.id, summary,
-        newLeads: 0, followUps: myTodayActivities.filter(a => a.type === ActivityType.CHAT_DM || a.type === ActivityType.CALL).length,
+        newLeads: 0,
+        followUps: myTodayActivities.filter(a => a.type === ActivityType.CHAT_DM || a.type === ActivityType.CALL).length,
         dealsToday: 0, dealValue: 0, constraints, supportNeeded: '', planTomorrow,
         status: ReportStatus.SUBMITTED,
-        progressUpdates: progressUpdates.map(u => ({
-          clientId: u.clientId, activity: '', prevStatus: u.prevStatus, newStatus: u.newStatus, result: u.result,
-        })),
+        progressUpdates: [],
       });
       setIsSuccess(true); onRefresh();
-    } catch (err: any) { alert('Gagal submit report: ' + err.message); } finally { setIsSaving(false); }
+    } catch (err: unknown) {
+      alert('Gagal submit report: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    } finally { setIsSaving(false); }
+  };
+
+  const getClientName = (clientId?: string) => {
+    if (!clientId) return null;
+    return clients.find(c => c.id === clientId)?.name || null;
   };
 
   const visitCount = myTodayActivities.filter(a => a.type === ActivityType.VISIT).length;
   const chatCallCount = myTodayActivities.filter(a => a.type === ActivityType.CHAT_DM || a.type === ActivityType.CALL).length;
+  const meetingCount = myTodayActivities.filter(a => a.type === ActivityType.MEETING).length;
+
+  const generateSummary = () => {
+    if (myTodayActivities.length === 0) return;
+    const lines = myTodayActivities.map(a => {
+      const client = getClientName(a.clientId);
+      const typeLabel = a.type === 'CHAT_DM' ? 'Chat/WA' : a.type === 'CALL' ? 'Telepon' : a.type === 'VISIT' ? 'Visit' : a.type === 'MEETING' ? 'Meeting' : 'Posting';
+      return `- ${typeLabel}${client ? ` ke ${client}` : ''}: ${a.description}`;
+    });
+    setSummary(lines.join('\n'));
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Alert banner */}
-      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3">
-        <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-          <i className="fa-solid fa-bell text-amber-600 text-sm"></i>
-        </div>
-        <div>
-          <p className="font-bold text-amber-800 text-sm">Mandatory Daily Report</p>
-          <p className="text-xs text-amber-600 mt-0.5">Laporan harian wajib dikirimkan setiap jam 17:00 WIB untuk evaluasi performa.</p>
-        </div>
-      </div>
-
       {/* Already submitted banner */}
       {alreadySubmitted && (
         <div className={`border p-4 rounded-2xl flex items-start gap-3 ${
@@ -99,8 +100,7 @@ const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, 
         }`}>
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
             existingStatus === 'APPROVED' ? 'bg-green-100' :
-            existingStatus === 'REVISION' ? 'bg-red-100' :
-            'bg-blue-100'
+            existingStatus === 'REVISION' ? 'bg-red-100' : 'bg-blue-100'
           }`}>
             <i className={`fa-solid ${
               existingStatus === 'APPROVED' ? 'fa-circle-check text-green-600' :
@@ -111,22 +111,19 @@ const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, 
           <div>
             <p className={`font-bold text-sm ${
               existingStatus === 'APPROVED' ? 'text-green-800' :
-              existingStatus === 'REVISION' ? 'text-red-800' :
-              'text-blue-800'
+              existingStatus === 'REVISION' ? 'text-red-800' : 'text-blue-800'
             }`}>
               {existingStatus === 'APPROVED' ? 'Laporan Hari Ini Sudah Di-approve' :
-               existingStatus === 'REVISION' ? 'Laporan Perlu Revisi' :
+               existingStatus === 'REVISION' ? 'Laporan Perlu Revisi — Update dan submit ulang' :
                'Laporan Hari Ini Sudah Disubmit'}
             </p>
             <p className={`text-xs mt-0.5 ${
               existingStatus === 'APPROVED' ? 'text-green-600' :
-              existingStatus === 'REVISION' ? 'text-red-600' :
-              'text-blue-600'
+              existingStatus === 'REVISION' ? 'text-red-600' : 'text-blue-600'
             }`}>
               {existingStatus === 'REVISION'
                 ? 'Manager meminta revisi. Silakan update dan submit ulang.'
-                : 'Submit ulang akan meng-update laporan yang sudah ada.'
-              }
+                : 'Submit ulang akan meng-update laporan yang sudah ada.'}
             </p>
           </div>
         </div>
@@ -138,8 +135,8 @@ const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, 
         <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6 lg:p-8 text-white">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
             <div>
-              <h1 className="text-2xl lg:text-3xl font-bold mb-1">End of Day Report</h1>
-              <p className="text-slate-400 text-sm">Marketing Activity & Client Progress</p>
+              <h1 className="text-2xl lg:text-3xl font-bold mb-1">Daily Report</h1>
+              <p className="text-slate-400 text-sm">Laporan aktivitas harian ke Manager</p>
             </div>
             <div className="text-left sm:text-right">
               <div className="text-lg font-mono text-indigo-400 font-bold">{today}</div>
@@ -153,87 +150,130 @@ const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, 
           <section>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">A</div>
-              <h3 className="text-sm font-bold text-slate-800">Informasi Umum</h3>
+              <h3 className="text-sm font-bold text-slate-800">Ringkasan Hari Ini</h3>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-center">
                 <p className="text-2xl font-bold text-slate-800">{myTodayActivities.length}</p>
                 <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Total Aktivitas</p>
               </div>
               <div className="p-4 bg-purple-50 rounded-xl border border-purple-100 text-center">
                 <p className="text-2xl font-bold text-purple-600">{visitCount}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Visit Lapangan</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Visit</p>
               </div>
-              <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 text-center">
-                <p className="text-2xl font-bold text-blue-600">{chatCallCount}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">WhatsApp / Call</p>
+              <div className="p-4 bg-green-50 rounded-xl border border-green-100 text-center">
+                <p className="text-2xl font-bold text-green-600">{chatCallCount}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">WA / Call</p>
               </div>
               <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-center">
-                <p className="text-2xl font-bold text-indigo-600">{myClients.length}</p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Total Client</p>
+                <p className="text-2xl font-bold text-indigo-600">{meetingCount}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Meeting</p>
+              </div>
+              <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 text-center">
+                <p className="text-2xl font-bold text-amber-600">{myClients.length}</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Client</p>
               </div>
             </div>
           </section>
 
-          {/* Section B: Summary */}
+          {/* Section B: Timeline */}
           <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">B</div>
-              <h3 className="text-sm font-bold text-slate-800">Ringkasan Kegiatan Hari Ini *</h3>
-            </div>
-            <textarea value={summary} onChange={(e) => setSummary(e.target.value)}
-              className="w-full border border-slate-200 p-4 rounded-xl min-h-[100px] focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all resize-none"
-              placeholder="Tuliskan ringkasan kegiatan Anda hari ini..." />
-          </section>
-
-          {/* Section C: Progress Update */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">C</div>
-              <h3 className="text-sm font-bold text-slate-800">Client Progress Update</h3>
-            </div>
-
-            {/* Mobile-friendly cards instead of table */}
-            <div className="space-y-3">
-              {progressUpdates.map((update, index) => (
-                <div key={update.clientId} className="bg-slate-50 rounded-xl border border-slate-100 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100">
-                        <i className="fa-solid fa-building text-xs"></i>
-                      </div>
-                      <span className="font-bold text-sm text-slate-800">{update.clientName}</span>
-                    </div>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase bg-white px-2 py-1 rounded-md border border-slate-100">
-                      {update.prevStatus.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Update Status</label>
-                      <select className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-300"
-                        value={update.newStatus} onChange={(e) => handleProgressChange(index, 'newStatus', e.target.value)}>
-                        {Object.values(ClientStatus).map(s => (
-                          <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Hasil / Respon</label>
-                      <input type="text" className="w-full p-2.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-300"
-                        placeholder="Misal: Client minta revisi" value={update.result}
-                        onChange={(e) => handleProgressChange(index, 'result', e.target.value)} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {progressUpdates.length === 0 && (
-                <div className="p-8 text-center text-slate-400">
-                  <i className="fa-solid fa-building text-2xl mb-2"></i>
-                  <p className="text-sm font-medium">Belum ada client yang di-assign</p>
-                </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">B</div>
+                <h3 className="text-sm font-bold text-slate-800">Timeline Aktivitas</h3>
+                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg font-medium">{myTodayActivities.length} aktivitas</span>
+              </div>
+              {myTodayActivities.length > 0 && (
+                <button onClick={() => onNavigate?.('activity')} className="text-[11px] text-indigo-600 font-bold hover:text-indigo-700 flex items-center gap-1">
+                  <i className="fa-solid fa-plus text-[9px]"></i>Tambah
+                </button>
               )}
             </div>
+
+            {myTodayActivities.length > 0 ? (
+              <div className="relative">
+                {/* Timeline line */}
+                <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-slate-100"></div>
+
+                <div className="space-y-3">
+                  {myTodayActivities.map((activity) => {
+                    const colors = ACTIVITY_COLORS[activity.type] || ACTIVITY_COLORS.CHAT_DM;
+                    const clientName = getClientName(activity.clientId);
+                    return (
+                      <div key={activity.id} className="relative flex gap-4">
+                        {/* Timeline dot */}
+                        <div className={`w-10 h-10 rounded-xl ${colors.bg} border ${colors.border} flex items-center justify-center flex-shrink-0 z-10`}>
+                          <i className={`${colors.icon} text-sm`}></i>
+                        </div>
+
+                        {/* Content */}
+                        <div className={`flex-1 ${colors.bg} border ${colors.border} rounded-xl p-4 hover:shadow-sm transition-shadow`}>
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[10px] font-bold uppercase ${colors.text}`}>
+                                {activity.type.replace('_', '/')}
+                              </span>
+                              {clientName && (
+                                <span className="text-[10px] bg-white/80 text-slate-600 px-2 py-0.5 rounded-md font-medium border border-slate-100">
+                                  <i className="fa-solid fa-building text-[8px] mr-1 text-slate-400"></i>{clientName}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">
+                              {activity.startTime?.slice(0, 5)} - {activity.endTime?.slice(0, 5)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-700 leading-relaxed">{activity.description}</p>
+                          {activity.location && activity.location !== '-' && (
+                            <p className="text-[10px] text-slate-400 mt-1.5 flex items-center gap-1">
+                              <i className="fa-solid fa-map-pin text-[8px]"></i>{activity.location}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-10 text-center">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mx-auto mb-3 border border-slate-100">
+                  <i className="fa-solid fa-timeline text-slate-300 text-xl"></i>
+                </div>
+                <p className="text-sm font-medium text-slate-500">Belum ada aktivitas hari ini</p>
+                <p className="text-xs text-slate-400 mt-1">Log aktivitas dulu di Daily Log atau Quick Log</p>
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <button onClick={() => onNavigate?.('activity')}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-500 transition-all flex items-center gap-1.5">
+                    <i className="fa-solid fa-list-check text-[10px]"></i>Daily Log
+                  </button>
+                  <button onClick={() => onNavigate?.('quicklog')}
+                    className="px-4 py-2 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all flex items-center gap-1.5">
+                    <i className="fa-solid fa-bolt text-amber-500 text-[10px]"></i>Quick Log
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Section C: Summary */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold">C</div>
+                <h3 className="text-sm font-bold text-slate-800">Ringkasan & Catatan *</h3>
+              </div>
+              {myTodayActivities.length > 0 && (
+                <button onClick={generateSummary}
+                  className="text-[11px] text-indigo-600 font-bold hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 transition-colors hover:bg-indigo-100">
+                  <i className="fa-solid fa-wand-magic-sparkles text-[10px]"></i>Auto-generate
+                </button>
+              )}
+            </div>
+            <textarea value={summary} onChange={(e) => setSummary(e.target.value)}
+              className="w-full border border-slate-200 p-4 rounded-xl min-h-[120px] focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none text-sm transition-all resize-none"
+              placeholder="Tuliskan ringkasan kegiatan Anda hari ini, atau klik Auto-generate untuk buat otomatis dari timeline..." />
           </section>
 
           {/* Section D & E */}
@@ -261,14 +301,14 @@ const EndDayReport: React.FC<EndDayReportProps> = ({ user, clients, activities, 
           {/* Submit */}
           <div className="pt-6 border-t border-slate-100 flex flex-col items-center">
             <p className="text-[11px] text-slate-400 mb-4 text-center max-w-md leading-relaxed">
-              Dengan mengklik "Submit Report", Anda menyatakan bahwa data di atas adalah benar dan dapat dipertanggungjawabkan.
+              Timeline aktivitas di atas akan otomatis dilampirkan dalam laporan ini.
             </p>
             <button onClick={handleSubmit} disabled={isSaving}
               className="w-full sm:w-auto px-12 py-4 bg-gradient-to-r from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 disabled:opacity-50 text-white rounded-2xl font-bold shadow-xl transition-all active:scale-[0.98] text-sm flex items-center justify-center gap-2">
               {isSaving ? (
                 <><i className="fa-solid fa-spinner fa-spin"></i>Submitting...</>
               ) : (
-                <>Submit Report <i className="fa-solid fa-paper-plane"></i></>
+                <><i className="fa-solid fa-paper-plane"></i>Submit Report</>
               )}
             </button>
           </div>

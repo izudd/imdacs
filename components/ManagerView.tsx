@@ -1,8 +1,16 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User, Client, Activity, EODReport, UserRole, ReportStatus, ClientStatus } from '../types';
 import { REPORT_STATUS_BADGE } from '../constants';
 import * as api from '../services/apiService';
+
+const ACTIVITY_COLORS: Record<string, { bg: string; icon: string; text: string; border: string }> = {
+  CHAT_DM: { bg: 'bg-green-50', icon: 'fa-brands fa-whatsapp text-green-500', text: 'text-green-700', border: 'border-green-200' },
+  CALL: { bg: 'bg-blue-50', icon: 'fa-solid fa-phone text-blue-500', text: 'text-blue-700', border: 'border-blue-200' },
+  VISIT: { bg: 'bg-purple-50', icon: 'fa-solid fa-location-dot text-purple-500', text: 'text-purple-700', border: 'border-purple-200' },
+  MEETING: { bg: 'bg-indigo-50', icon: 'fa-solid fa-users text-indigo-500', text: 'text-indigo-700', border: 'border-indigo-200' },
+  POSTING: { bg: 'bg-orange-50', icon: 'fa-solid fa-share-nodes text-orange-500', text: 'text-orange-700', border: 'border-orange-200' },
+};
 
 interface ManagerViewProps {
   user: User;
@@ -47,7 +55,7 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
       const updated = await api.updateReportStatus(reportId, ReportStatus.APPROVED);
       setReports(prev => prev.map(r => r.id === reportId ? updated : r));
       setReviewingReport(null);
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: unknown) { alert('Error: ' + (err instanceof Error ? err.message : 'Unknown error')); }
   };
 
   const handleRevision = async (reportId: string) => {
@@ -55,7 +63,7 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
       const updated = await api.updateReportStatus(reportId, ReportStatus.REVISION);
       setReports(prev => prev.map(r => r.id === reportId ? updated : r));
       setReviewingReport(null);
-    } catch (err: any) { alert('Error: ' + err.message); }
+    } catch (err: unknown) { alert('Error: ' + (err instanceof Error ? err.message : 'Unknown error')); }
   };
 
   const getStagnantDays = (lastUpdate: string) => {
@@ -102,6 +110,19 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
   const selectedName = selectedMarketing === 'all'
     ? null
     : marketingUsers.find(m => m.id === selectedMarketing)?.name || '';
+
+  // Timeline activities for the report being reviewed
+  const reviewActivities = useMemo(() => {
+    if (!reviewingReport) return [];
+    return activities
+      .filter(a => a.marketingId === reviewingReport.marketingId && a.date === reviewingReport.date)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [reviewingReport, activities]);
+
+  const getClientName = (clientId?: string) => {
+    if (!clientId) return null;
+    return clients.find(c => c.id === clientId)?.name || null;
+  };
 
   return (
     <div className="space-y-6">
@@ -325,29 +346,64 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
                 </div>
               </div>
 
+              {/* Timeline Activities */}
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Ringkasan</p>
-                <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 leading-relaxed">{reviewingReport.summary || '-'}</div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-2 flex items-center gap-1.5">
+                  <i className="fa-solid fa-timeline text-indigo-500"></i>
+                  Timeline Aktivitas
+                  <span className="bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded text-[9px] font-medium ml-1">{reviewActivities.length}</span>
+                </p>
+                {reviewActivities.length > 0 ? (
+                  <div className="relative">
+                    <div className="absolute left-[15px] top-3 bottom-3 w-0.5 bg-slate-100"></div>
+                    <div className="space-y-2.5 max-h-60 overflow-y-auto">
+                      {reviewActivities.map(activity => {
+                        const colors = ACTIVITY_COLORS[activity.type] || ACTIVITY_COLORS.CHAT_DM;
+                        const clientName = getClientName(activity.clientId);
+                        return (
+                          <div key={activity.id} className="relative flex gap-3">
+                            <div className={`w-8 h-8 rounded-lg ${colors.bg} border ${colors.border} flex items-center justify-center flex-shrink-0 z-10`}>
+                              <i className={`${colors.icon} text-xs`}></i>
+                            </div>
+                            <div className={`flex-1 ${colors.bg} border ${colors.border} rounded-lg p-3`}>
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className={`text-[9px] font-bold uppercase ${colors.text}`}>{activity.type.replace('_', '/')}</span>
+                                  {clientName && (
+                                    <span className="text-[9px] bg-white/80 text-slate-600 px-1.5 py-0.5 rounded font-medium border border-slate-100">
+                                      {clientName}
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] text-slate-400 font-mono flex-shrink-0">
+                                  {activity.startTime?.slice(0, 5)} - {activity.endTime?.slice(0, 5)}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-700 leading-relaxed">{activity.description}</p>
+                              {activity.location && activity.location !== '-' && (
+                                <p className="text-[9px] text-slate-400 mt-1 flex items-center gap-1">
+                                  <i className="fa-solid fa-map-pin text-[7px]"></i>{activity.location}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 p-6 rounded-xl text-center border border-slate-100">
+                    <i className="fa-solid fa-timeline text-slate-300 text-lg mb-2"></i>
+                    <p className="text-xs text-slate-400">Tidak ada aktivitas tercatat untuk tanggal ini</p>
+                  </div>
+                )}
               </div>
 
-              {reviewingReport.progressUpdates && reviewingReport.progressUpdates.length > 0 && (
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Client Progress</p>
-                  <div className="space-y-2">
-                    {reviewingReport.progressUpdates.map((u, i) => (
-                      <div key={i} className="bg-slate-50 p-3 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <span className="font-semibold text-xs text-slate-800">{clients.find(c => c.id === u.clientId)?.name || u.clientId}</span>
-                        <div className="flex items-center gap-2 text-[10px]">
-                          <span className="bg-slate-200 px-2 py-0.5 rounded font-medium">{u.prevStatus}</span>
-                          <i className="fa-solid fa-arrow-right text-slate-400 text-[8px]"></i>
-                          <span className="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">{u.newStatus}</span>
-                        </div>
-                        <span className="text-[11px] text-slate-500">{u.result || '-'}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Summary */}
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase mb-1.5">Ringkasan</p>
+                <div className="bg-slate-50 p-4 rounded-xl text-sm text-slate-700 leading-relaxed whitespace-pre-line">{reviewingReport.summary || '-'}</div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
