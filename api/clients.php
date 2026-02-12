@@ -114,6 +114,7 @@ elseif ($method === 'POST') {
             'address' => $c['address'],
             'marketingId' => $c['marketing_id'],
             'status' => $c['status'],
+            'estimatedValue' => (float)($c['estimated_value'] ?? 0),
             'lastUpdate' => $c['last_update'],
             'createdAt' => $c['created_at']
         ]);
@@ -274,6 +275,7 @@ elseif ($method === 'PUT') {
             'address' => $c['address'],
             'marketingId' => $c['marketing_id'],
             'status' => $c['status'],
+            'estimatedValue' => (float)($c['estimated_value'] ?? 0),
             'lastUpdate' => $c['last_update'],
             'createdAt' => $c['created_at']
         ]);
