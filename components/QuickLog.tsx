@@ -32,10 +32,7 @@ const ACTIVITY_TYPE_LABELS: Record<ActivityType, { label: string; icon: string; 
 };
 
 function formatCurrency(value: number): string {
-  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}M`;
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
-  return value.toString();
+  return `Rp ${value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 const QuickLog: React.FC<QuickLogProps> = ({ user, clients, activities, onAddActivity, onQuickAddClient, onEditClient, onRefresh }) => {

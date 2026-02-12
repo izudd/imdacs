@@ -101,10 +101,7 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
     .filter(c => c.status === ClientStatus.DEAL)
     .reduce((sum, c) => sum + (c.estimatedValue || 0), 0);
   const formatRupiah = (value: number) => {
-    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}M`;
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
-    return value.toString();
+    return value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const selectedName = selectedMarketing === 'all'

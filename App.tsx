@@ -346,7 +346,7 @@ const App: React.FC = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-slate-800">EOD Report Reminder</p>
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Jangan lupa submit laporan harian Anda sebelum jam 17:00.</p>
+            <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">Jangan lupa submit laporan harian Anda sebelum jam 23:59.</p>
             <button
               onClick={() => { setActiveTab('report'); setShowEodReminder(false); }}
               className="mt-2 text-[11px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
@@ -404,7 +404,7 @@ const App: React.FC = () => {
                   <div>
                     <p className="text-sm font-bold text-amber-900">Sudah jam 16:30!</p>
                     <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                      Segera isi dan submit laporan harian (EOD Report) Anda sebelum jam 17:00 ya.
+                      Segera isi dan submit laporan harian (EOD Report) Anda sebelum jam 23:59 ya.
                     </p>
                   </div>
                 </div>

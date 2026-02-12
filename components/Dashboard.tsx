@@ -125,10 +125,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
   const dealProgress = Math.min((dealsCount / KPI_TARGETS.monthlyDeals) * 100, 100);
 
   const formatRupiah = (value: number) => {
-    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}M`;
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
-    return value.toString();
+    return value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   // === Export handlers (Manager) ===

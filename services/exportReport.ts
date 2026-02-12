@@ -9,7 +9,7 @@ import { User, Client, Activity, EODReport, UserRole, ClientStatus, ActivityType
 // =============================================
 
 const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 };
 
 const formatDate = (date: Date): string => {

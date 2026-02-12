@@ -80,10 +80,7 @@ const TeamView: React.FC<TeamViewProps> = ({ user, users, clients, activities })
     .reduce((sum, c) => sum + (c.estimatedValue || 0), 0);
 
   const formatRupiah = (value: number) => {
-    if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}M`;
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}jt`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(0)}rb`;
-    return value.toString();
+    return value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const getStagnantDays = (lastUpdate: string) => {

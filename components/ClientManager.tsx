@@ -27,10 +27,7 @@ const emptyForm = {
 };
 
 function formatCurrency(value: number): string {
-  if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}M`;
-  if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(0)}jt`;
-  if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}rb`;
-  return `Rp ${value.toLocaleString('id-ID')}`;
+  return `Rp ${value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function getStagnantDays(lastUpdate: string): number {
