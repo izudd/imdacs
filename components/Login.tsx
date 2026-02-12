@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
@@ -8,6 +8,12 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSplashDone(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,13 +40,27 @@ const Login: React.FC = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="w-full max-w-sm relative z-10 animate-fade-in">
+      {/* Splash Logo */}
+      {!splashDone && (
+        <div className="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex items-center justify-center animate-[logoZoom_2s_cubic-bezier(0.4,0,0.2,1)_forwards]">
+          <img
+            src="/logo.jpeg"
+            alt="IMDACS Logo"
+            className="w-52 h-52 sm:w-64 sm:h-64 object-contain rounded-3xl shadow-2xl shadow-indigo-500/20"
+          />
+        </div>
+      )}
+
+      {/* Login Content */}
+      <div className={`w-full max-w-sm relative z-10 ${splashDone ? 'animate-[loginReveal_0.6s_cubic-bezier(0.4,0,0.2,1)_forwards]' : 'opacity-0'}`}>
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="relative inline-block mb-4">
-            <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto shadow-2xl shadow-indigo-500/30 rotate-3 hover:rotate-0 transition-transform">
-              <i className="fa-solid fa-bullseye text-white text-3xl"></i>
-            </div>
+            <img
+              src="/logo.jpeg"
+              alt="IMDACS Logo"
+              className="w-20 h-20 rounded-2xl mx-auto shadow-2xl shadow-indigo-500/30 object-contain rotate-3 hover:rotate-0 transition-transform"
+            />
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">IMDACS</h1>
           <p className="text-indigo-300/80 text-xs font-semibold uppercase tracking-[0.2em] mt-1">
