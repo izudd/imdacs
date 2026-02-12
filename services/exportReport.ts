@@ -59,7 +59,7 @@ interface ExportData {
 }
 
 function getMarketingUsers(users: User[]) {
-  return users.filter(u => u.role === UserRole.MARKETING);
+  return users.filter(u => u.role === UserRole.MARKETING || u.role === UserRole.SUPERVISOR);
 }
 
 function getPerMarketingStats(data: ExportData) {
@@ -774,4 +774,326 @@ export function exportPDF(data: ExportData) {
   // Save
   const filename = `IMDACS_Manager_Report_${todayStr}.pdf`;
   doc.save(filename);
+}
+
+// =============================================
+// TEAM EXCEL EXPORT (Supervisor)
+// =============================================
+
+export function exportTeamExcel(data: ExportData) {
+  const wb = XLSX.utils.book_new();
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const teamMembers = getMarketingUsers(data.users);
+  const perMarketing = getPerMarketingStats(data);
+  const pipeline = getPipelineSummary(data.clients);
+  const stagnant = getStagnantClients(data.clients, data.users);
+
+  // Sheet 1: Team Summary
+  const summaryData = [
+    ['IMDACS - SPV Team Report'],
+    ['Internal Marketing Daily Activity & Client Progress System'],
+    [''],
+    ['Tanggal Report:', formatDate(today)],
+    ['Supervisor:', data.user.name],
+    ['Anggota Tim:', teamMembers.filter(u => u.id !== data.user.id).map(u => u.name).join(', ')],
+    [''],
+    ['═══════════════════════════════════════'],
+    ['TEAM SUMMARY'],
+    ['═══════════════════════════════════════'],
+    [''],
+    ['Total Clients:', data.clients.length],
+    ['Total Deals:', data.clients.filter(c => c.status === ClientStatus.DEAL).length],
+    ['Aktivitas Hari Ini:', data.activities.filter(a => a.date === todayStr).length],
+    ['Tim Marketing:', teamMembers.length],
+    [''],
+    ['Pipeline Value:', formatCurrency(pipeline.pipelineValue)],
+    ['Deal Value:', formatCurrency(pipeline.dealValue)],
+    ['Total Value:', formatCurrency(pipeline.totalValue)],
+    [''],
+    ['═══════════════════════════════════════'],
+    ['PIPELINE BREAKDOWN'],
+    ['═══════════════════════════════════════'],
+    [''],
+    ['Status', 'Jumlah Client', 'Estimasi Nilai'],
+    ...Object.values(ClientStatus).map(st => {
+      const cs = data.clients.filter(c => c.status === st);
+      return [statusLabel(st), cs.length, formatCurrency(cs.reduce((s, c) => s + (c.estimatedValue || 0), 0))];
+    }),
+    [''],
+    ['TOTAL', data.clients.length, formatCurrency(pipeline.totalValue)],
+  ];
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+  wsSummary['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 25 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Team Summary');
+
+  // Sheet 2: Member Performance
+  const perfHeaders = ['No', 'Nama', 'Total Client', 'Akt. Hari Ini', 'Akt. Minggu', 'Deal', 'Conv. Rate', 'Pipeline Value', 'Deal Value', 'EOD Status'];
+  const perfData = perMarketing.map((m, i) => [
+    i + 1, m.user.name, m.totalClients, m.todayActivities, m.weekActivities,
+    m.deals, `${m.convRate}%`, formatCurrency(m.pipelineValue),
+    formatCurrency(m.dealValue), m.eodStatus === 'MISSING' ? 'Belum Submit' : m.eodStatus,
+  ]);
+  const perfSheet = [['TEAM MEMBER PERFORMANCE'], [`Tanggal: ${formatDate(today)}`], [''], perfHeaders, ...perfData];
+  const wsPerf = XLSX.utils.aoa_to_sheet(perfSheet);
+  wsPerf['!cols'] = [{ wch: 5 }, { wch: 25 }, { wch: 14 }, { wch: 15 }, { wch: 15 }, { wch: 8 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, wsPerf, 'Member Performance');
+
+  // Sheet 3: All Team Clients
+  const clientHeaders = ['No', 'Nama Client', 'Industri', 'PIC Client', 'Phone', 'Email', 'Marketing', 'Status', 'Estimasi Nilai', 'Last Update'];
+  const clientData = data.clients.map((c, i) => [
+    i + 1, c.name, c.industry, c.picName, c.phone, c.email,
+    teamMembers.find(m => m.id === c.marketingId)?.name || c.marketingId,
+    statusLabel(c.status), formatCurrency(c.estimatedValue || 0), c.lastUpdate || '-',
+  ]);
+  const clientSheet = [['DAFTAR CLIENT TIM'], [`Tanggal: ${formatDate(today)} | Total: ${data.clients.length} clients`], [''], clientHeaders, ...clientData];
+  const wsClient = XLSX.utils.aoa_to_sheet(clientSheet);
+  wsClient['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 16 }, { wch: 25 }, { wch: 22 }, { wch: 14 }, { wch: 22 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, wsClient, 'Team Clients');
+
+  // Sheet 4: Activities Today
+  const todayActs = data.activities.filter(a => a.date === todayStr);
+  const actHeaders = ['No', 'Marketing', 'Tipe', 'Client', 'Deskripsi', 'Waktu Mulai', 'Waktu Selesai', 'Lokasi', 'Status'];
+  const actData = todayActs.map((a, i) => [
+    i + 1, teamMembers.find(m => m.id === a.marketingId)?.name || a.marketingId,
+    activityLabel(a.type), a.clientId ? (data.clients.find(c => c.id === a.clientId)?.name || '-') : '-',
+    a.description, a.startTime, a.endTime, a.location || '-', a.status,
+  ]);
+  const actSheet = [['AKTIVITAS TIM HARI INI'], [`Tanggal: ${formatDate(today)} | Total: ${todayActs.length}`], [''], actHeaders,
+    ...actData.length > 0 ? actData : [['', '', '', '', 'Belum ada aktivitas', '', '', '', '']]];
+  const wsAct = XLSX.utils.aoa_to_sheet(actSheet);
+  wsAct['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 12 }, { wch: 25 }, { wch: 40 }, { wch: 14 }, { wch: 14 }, { wch: 25 }, { wch: 10 }];
+  XLSX.utils.book_append_sheet(wb, wsAct, 'Activities Today');
+
+  // Sheet 5: Stagnant Clients
+  const stagnHeaders = ['No', 'Client', 'Industri', 'Marketing', 'Status', 'Hari Stagnant', 'Estimasi Nilai'];
+  const stagnData = stagnant.map((c, i) => [
+    i + 1, c.name, c.industry, c.picName, statusLabel(c.status), c.daysStagnant, formatCurrency(c.estimatedValue || 0),
+  ]);
+  const stagnSheet = [['STAGNANT CLIENTS (> 7 HARI)'], [`Total: ${stagnant.length} clients perlu perhatian`], [''], stagnHeaders,
+    ...stagnData.length > 0 ? stagnData : [['', '', '', '', 'Semua client aktif!', '', '']]];
+  const wsStag = XLSX.utils.aoa_to_sheet(stagnSheet);
+  wsStag['!cols'] = [{ wch: 5 }, { wch: 30 }, { wch: 20 }, { wch: 22 }, { wch: 14 }, { wch: 15 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsStag, 'Stagnant Clients');
+
+  // Sheet 6: EOD Reports
+  const eodHeaders = ['No', 'Marketing', 'Tanggal', 'Status', 'Ringkasan', 'Leads', 'Follow Up', 'Deal', 'Kendala', 'Rencana Besok'];
+  const eodData = data.reports.slice(0, 50).map((r, i) => [
+    i + 1, teamMembers.find(m => m.id === r.marketingId)?.name || r.marketingId,
+    r.date, r.status, r.summary || '-', r.newLeads, r.followUps, r.dealsToday, r.constraints || '-', r.planTomorrow || '-',
+  ]);
+  const eodSheet = [['EOD REPORTS TIM'], [`Total: ${data.reports.length} reports`], [''], eodHeaders,
+    ...eodData.length > 0 ? eodData : [['', '', '', '', 'Belum ada laporan', '', '', '', '', '']]];
+  const wsEod = XLSX.utils.aoa_to_sheet(eodSheet);
+  wsEod['!cols'] = [{ wch: 5 }, { wch: 22 }, { wch: 14 }, { wch: 12 }, { wch: 40 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 35 }, { wch: 35 }];
+  XLSX.utils.book_append_sheet(wb, wsEod, 'EOD Reports');
+
+  XLSX.writeFile(wb, `IMDACS_Team_Report_${todayStr}.xlsx`);
+}
+
+// =============================================
+// TEAM PDF EXPORT (Supervisor)
+// =============================================
+
+export function exportTeamPDF(data: ExportData) {
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const teamMembers = getMarketingUsers(data.users);
+  const perMarketing = getPerMarketingStats(data);
+  const pipeline = getPipelineSummary(data.clients);
+  const stagnant = getStagnantClients(data.clients, data.users);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  const contentWidth = pageWidth - margin * 2;
+
+  const primaryColor: [number, number, number] = [99, 102, 241];
+  const darkColor: [number, number, number] = [30, 41, 59];
+  const grayColor: [number, number, number] = [100, 116, 139];
+  const greenColor: [number, number, number] = [34, 197, 94];
+  const amberColor: [number, number, number] = [245, 158, 11];
+
+  let currentY = 0;
+
+  // Header
+  const drawHeader = () => {
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, pageWidth, 50, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('IMDACS', margin, 22);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text('SPV Team Report', margin, 30);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatDateShort(today), pageWidth - margin, 22, { align: 'right' });
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`SPV: ${data.user.name}`, pageWidth - margin, 30, { align: 'right' });
+    doc.setFillColor(241, 245, 249);
+    doc.rect(0, 50, pageWidth, 12, 'F');
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(8);
+    doc.text(`Tim: ${teamMembers.filter(u => u.id !== data.user.id).map(u => u.name).join(', ')}  |  ${formatDate(today)}`, margin, 58);
+    currentY = 72;
+  };
+
+  const drawSectionTitle = (title: string) => {
+    if (currentY > 260) { doc.addPage(); currentY = 20; }
+    doc.setFillColor(...primaryColor);
+    doc.roundedRect(margin, currentY, contentWidth, 9, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`  ■  ${title}`, margin + 2, currentY + 6.5);
+    currentY += 14;
+  };
+
+  // Page 1: Summary + KPIs
+  drawHeader();
+  drawSectionTitle('TEAM SUMMARY');
+
+  const cardW = (contentWidth - 6) / 4;
+  const cards = [
+    { label: 'Total Clients', value: data.clients.length.toString(), color: primaryColor },
+    { label: 'Aktivitas Hari Ini', value: data.activities.filter(a => a.date === todayStr).length.toString(), color: amberColor },
+    { label: 'Total Deals', value: data.clients.filter(c => c.status === ClientStatus.DEAL).length.toString(), color: greenColor },
+    { label: 'Anggota Tim', value: teamMembers.length.toString(), color: darkColor },
+  ];
+  cards.forEach((card, i) => {
+    const x = margin + i * (cardW + 2);
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(x, currentY, cardW, 22, 2, 2, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(x, currentY, cardW, 22, 2, 2, 'S');
+    doc.setFillColor(...card.color);
+    doc.roundedRect(x, currentY, cardW, 2.5, 2, 2, 'F');
+    doc.setTextColor(...card.color);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(card.value, x + cardW / 2, currentY + 13, { align: 'center' });
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(card.label, x + cardW / 2, currentY + 19, { align: 'center' });
+  });
+  currentY += 28;
+
+  // Revenue
+  doc.setFillColor(240, 253, 244);
+  doc.roundedRect(margin, currentY, contentWidth, 20, 2, 2, 'F');
+  const revColW = contentWidth / 3;
+  [
+    { label: 'Pipeline Value', value: formatCurrency(pipeline.pipelineValue), color: greenColor },
+    { label: 'Deal Value', value: formatCurrency(pipeline.dealValue), color: amberColor },
+    { label: 'Total Value', value: formatCurrency(pipeline.totalValue), color: primaryColor },
+  ].forEach((item, i) => {
+    const x = margin + i * revColW;
+    doc.setTextColor(...item.color);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(item.value, x + revColW / 2, currentY + 10, { align: 'center' });
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(item.label, x + revColW / 2, currentY + 16, { align: 'center' });
+  });
+  currentY += 26;
+
+  // Member Performance Table
+  drawSectionTitle('TEAM MEMBER PERFORMANCE');
+  autoTable(doc, {
+    startY: currentY, margin: { left: margin, right: margin },
+    head: [['No', 'Nama', 'Client', 'Akt. Hari Ini', 'Akt. Minggu', 'Deal', 'Conv.', 'Pipeline', 'Deal Value', 'EOD']],
+    body: perMarketing.map((m, i) => [
+      (i + 1).toString(), m.user.name, m.totalClients.toString(), m.todayActivities.toString(),
+      m.weekActivities.toString(), m.deals.toString(), `${m.convRate}%`,
+      formatCurrency(m.pipelineValue), formatCurrency(m.dealValue),
+      m.eodStatus === 'MISSING' ? 'Belum' : m.eodStatus,
+    ]),
+    theme: 'grid',
+    headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, halign: 'center' },
+    bodyStyles: { fontSize: 7, textColor: darkColor, halign: 'center' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: { 0: { cellWidth: 8 }, 1: { halign: 'left', cellWidth: 28 }, 7: { halign: 'right', cellWidth: 22 }, 8: { halign: 'right', cellWidth: 22 } },
+  });
+  currentY = (doc as any).lastAutoTable.finalY + 8;
+
+  // Clients
+  doc.addPage();
+  currentY = 20;
+  drawSectionTitle(`DAFTAR CLIENT TIM (${data.clients.length})`);
+  autoTable(doc, {
+    startY: currentY, margin: { left: margin, right: margin },
+    head: [['No', 'Client', 'Industri', 'Marketing', 'Status', 'Estimasi', 'Last Update']],
+    body: data.clients.map((c, i) => [
+      (i + 1).toString(), c.name, c.industry || '-',
+      teamMembers.find(m => m.id === c.marketingId)?.name || c.marketingId,
+      statusLabel(c.status), formatCurrency(c.estimatedValue || 0), c.lastUpdate || '-',
+    ]),
+    theme: 'grid',
+    headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, halign: 'center' },
+    bodyStyles: { fontSize: 7, textColor: darkColor },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 1: { cellWidth: 35 }, 4: { cellWidth: 20, halign: 'center' }, 5: { cellWidth: 28, halign: 'right' } },
+  });
+  currentY = (doc as any).lastAutoTable.finalY + 8;
+
+  // Stagnant
+  if (stagnant.length > 0) {
+    if (currentY > 220) { doc.addPage(); currentY = 20; }
+    drawSectionTitle(`STAGNANT CLIENTS (${stagnant.length})`);
+    autoTable(doc, {
+      startY: currentY, margin: { left: margin, right: margin },
+      head: [['No', 'Client', 'Marketing', 'Status', 'Hari Stagnant', 'Estimasi']],
+      body: stagnant.map((c, i) => [
+        (i + 1).toString(), c.name, c.picName, statusLabel(c.status), `${c.daysStagnant} hari`, formatCurrency(c.estimatedValue || 0),
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: [239, 68, 68], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, halign: 'center' },
+      bodyStyles: { fontSize: 7, textColor: darkColor },
+      alternateRowStyles: { fillColor: [254, 242, 242] },
+      columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 4: { halign: 'center', fontStyle: 'bold' }, 5: { halign: 'right' } },
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // Activities Today
+  const todayActs = data.activities.filter(a => a.date === todayStr);
+  if (todayActs.length > 0) {
+    if (currentY > 220) { doc.addPage(); currentY = 20; }
+    drawSectionTitle(`AKTIVITAS TIM HARI INI (${todayActs.length})`);
+    autoTable(doc, {
+      startY: currentY, margin: { left: margin, right: margin },
+      head: [['No', 'Marketing', 'Tipe', 'Client', 'Deskripsi', 'Waktu', 'Status']],
+      body: todayActs.map((a, i) => [
+        (i + 1).toString(), teamMembers.find(m => m.id === a.marketingId)?.name || a.marketingId,
+        activityLabel(a.type), a.clientId ? (data.clients.find(c => c.id === a.clientId)?.name || '-') : '-',
+        a.description?.substring(0, 50) + ((a.description?.length ?? 0) > 50 ? '...' : ''), `${a.startTime} - ${a.endTime}`, a.status,
+      ]),
+      theme: 'grid',
+      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7, halign: 'center' },
+      bodyStyles: { fontSize: 7, textColor: darkColor },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: { 0: { cellWidth: 8, halign: 'center' }, 4: { cellWidth: 45 } },
+    });
+  }
+
+  // Footer
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    const pgHeight = doc.internal.pageSize.getHeight();
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, pgHeight - 12, pageWidth - margin, pgHeight - 12);
+    doc.setTextColor(...grayColor);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text('IMDACS - SPV Team Report', margin, pgHeight - 7);
+    doc.text(`Halaman ${i} dari ${totalPages}`, pageWidth - margin, pgHeight - 7, { align: 'right' });
+  }
+
+  doc.save(`IMDACS_Team_Report_${todayStr}.pdf`);
 }

@@ -10,6 +10,7 @@ import ClientManager from './components/ClientManager';
 import DailyLog from './components/DailyLog';
 import EndDayReport from './components/EndDayReport';
 import ManagerView from './components/ManagerView';
+import TeamView from './components/TeamView';
 import QuickLog from './components/QuickLog';
 
 const EOD_REMINDER_HOUR = 16;
@@ -28,7 +29,7 @@ const App: React.FC = () => {
 
   // ============ EOD 16:30 Popup Timer ============
   useEffect(() => {
-    if (!currentUser || currentUser.role !== UserRole.MARKETING) return;
+    if (!currentUser || (currentUser.role !== UserRole.MARKETING && currentUser.role !== UserRole.SUPERVISOR)) return;
 
     const todayKey = `eod_popup_${new Date().toISOString().slice(0, 10)}`;
 
@@ -159,11 +160,12 @@ const App: React.FC = () => {
   }
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-grid-2', mobileIcon: 'fa-solid fa-grid-2', roles: [UserRole.MARKETING, UserRole.MANAGER] },
-    { id: 'quicklog', label: 'Quick Log', icon: 'fa-solid fa-bolt', mobileIcon: 'fa-solid fa-bolt', roles: [UserRole.MARKETING] },
-    { id: 'clients', label: 'Clients', icon: 'fa-solid fa-building', mobileIcon: 'fa-solid fa-building', roles: [UserRole.MARKETING, UserRole.MANAGER] },
-    { id: 'activity', label: 'Daily Log', icon: 'fa-solid fa-list-check', mobileIcon: 'fa-solid fa-list-check', roles: [UserRole.MARKETING] },
-    { id: 'report', label: 'EOD Report', icon: 'fa-solid fa-file-lines', mobileIcon: 'fa-solid fa-file-lines', roles: [UserRole.MARKETING] },
+    { id: 'dashboard', label: 'Dashboard', icon: 'fa-solid fa-grid-2', mobileIcon: 'fa-solid fa-grid-2', roles: [UserRole.MARKETING, UserRole.SUPERVISOR, UserRole.MANAGER] },
+    { id: 'quicklog', label: 'Quick Log', icon: 'fa-solid fa-bolt', mobileIcon: 'fa-solid fa-bolt', roles: [UserRole.MARKETING, UserRole.SUPERVISOR] },
+    { id: 'clients', label: 'Clients', icon: 'fa-solid fa-building', mobileIcon: 'fa-solid fa-building', roles: [UserRole.MARKETING, UserRole.SUPERVISOR, UserRole.MANAGER] },
+    { id: 'activity', label: 'Daily Log', icon: 'fa-solid fa-list-check', mobileIcon: 'fa-solid fa-list-check', roles: [UserRole.MARKETING, UserRole.SUPERVISOR] },
+    { id: 'report', label: 'EOD Report', icon: 'fa-solid fa-file-lines', mobileIcon: 'fa-solid fa-file-lines', roles: [UserRole.MARKETING, UserRole.SUPERVISOR] },
+    { id: 'team', label: 'Team', icon: 'fa-solid fa-users-gear', mobileIcon: 'fa-solid fa-users-gear', roles: [UserRole.SUPERVISOR] },
     { id: 'oversight', label: 'Oversight', icon: 'fa-solid fa-chart-line', mobileIcon: 'fa-solid fa-chart-line', roles: [UserRole.MANAGER] },
   ];
 
@@ -298,6 +300,7 @@ const App: React.FC = () => {
             {activeTab === 'clients' && <ClientManager user={currentUser} clients={clients} users={users} activities={activities} onAddClient={handleAddClient} onEditClient={handleEditClient} onImportClients={handleImportClients} />}
             {activeTab === 'activity' && <DailyLog user={currentUser} clients={clients} activities={activities} onAddActivity={handleAddActivity} onRefresh={handleRefreshData} />}
             {activeTab === 'report' && <EndDayReport user={currentUser} clients={clients} activities={activities} onRefresh={handleRefreshData} onNavigate={setActiveTab} />}
+            {activeTab === 'team' && <TeamView user={currentUser} users={users} clients={clients} activities={activities} />}
             {activeTab === 'oversight' && <ManagerView user={currentUser} users={users} clients={clients} activities={activities} />}
           </div>
         </main>
@@ -335,7 +338,7 @@ const App: React.FC = () => {
       </div>
 
       {/* EOD Floating Reminder (static, always visible until dismissed) */}
-      {currentUser.role === UserRole.MARKETING && activeTab !== 'report' && showEodReminder && (
+      {(currentUser.role === UserRole.MARKETING || currentUser.role === UserRole.SUPERVISOR) && activeTab !== 'report' && showEodReminder && (
         <div className="fixed bottom-20 lg:bottom-6 right-4 lg:right-6 bg-white shadow-2xl shadow-slate-900/10 rounded-2xl p-4 border border-slate-100 flex items-start gap-3 z-40 max-w-xs animate-slide-up">
           <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 text-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/25">
             <i className="fa-solid fa-bell text-sm"></i>

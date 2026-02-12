@@ -24,7 +24,7 @@ try {
         }
 
         // Get all marketing users
-        $stmt = $db->query("SELECT id, name FROM users WHERE role = 'MARKETING' ORDER BY name");
+        $stmt = $db->query("SELECT id, name FROM users WHERE role IN ('MARKETING','SUPERVISOR') ORDER BY name");
         $marketingUsers = $stmt->fetchAll();
 
         // Get activity counts grouped by date and marketing_id
@@ -77,7 +77,7 @@ try {
 
     // === Monthly Activity Summary (per marketing, grouped by month) ===
     elseif ($type === 'monthly_activities') {
-        $stmt = $db->query("SELECT id, name FROM users WHERE role = 'MARKETING' ORDER BY name");
+        $stmt = $db->query("SELECT id, name FROM users WHERE role IN ('MARKETING','SUPERVISOR') ORDER BY name");
         $marketingUsers = $stmt->fetchAll();
 
         // Last 6 months
@@ -134,7 +134,7 @@ try {
             $startDate = date('Y-m-01');
         }
 
-        $stmt = $db->query("SELECT id, name FROM users WHERE role = 'MARKETING' ORDER BY name");
+        $stmt = $db->query("SELECT id, name FROM users WHERE role IN ('MARKETING','SUPERVISOR') ORDER BY name");
         $marketingUsers = $stmt->fetchAll();
         $totalMarketing = count($marketingUsers);
 

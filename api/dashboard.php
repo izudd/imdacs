@@ -9,7 +9,7 @@ try {
     $today = date('Y-m-d');
     $firstDayOfMonth = date('Y-m-01');
 
-    if ($auth['role'] === 'MARKETING') {
+    if ($auth['role'] === 'MARKETING' || $auth['role'] === 'SUPERVISOR') {
         // Total clients
         $stmt = $db->prepare("SELECT COUNT(*) as total FROM clients WHERE marketing_id = ?");
         $stmt->execute([$auth['id']]);
@@ -47,7 +47,7 @@ try {
         // Check how many marketing users submitted EOD today
         $stmt = $db->prepare("
             SELECT
-                (SELECT COUNT(*) FROM users WHERE role = 'MARKETING') as total_marketing,
+                (SELECT COUNT(*) FROM users WHERE role IN ('MARKETING','SUPERVISOR')) as total_marketing,
                 (SELECT COUNT(*) FROM eod_reports WHERE date = ?) as submitted_today
         ");
         $stmt->execute([$today]);

@@ -49,6 +49,20 @@ if ($method === 'GET') {
         if ($auth['role'] === 'MARKETING') {
             $conditions[] = "marketing_id = ?";
             $params[] = $auth['id'];
+        } elseif ($auth['role'] === 'SUPERVISOR') {
+            if (!empty($_GET['scope']) && $_GET['scope'] === 'team') {
+                // Team scope: self + team members
+                $teamStmt = $db->prepare("SELECT id FROM users WHERE supervisor_id = ? OR id = ?");
+                $teamStmt->execute([$auth['id'], $auth['id']]);
+                $teamIds = array_column($teamStmt->fetchAll(), 'id');
+                $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+                $conditions[] = "marketing_id IN ($placeholders)";
+                $params = array_merge($params, $teamIds);
+            } else {
+                // Default: own reports only
+                $conditions[] = "marketing_id = ?";
+                $params[] = $auth['id'];
+            }
         } elseif (!empty($_GET['marketing_id'])) {
             $conditions[] = "marketing_id = ?";
             $params[] = $_GET['marketing_id'];
@@ -190,11 +204,11 @@ elseif ($method === 'POST') {
     }
 }
 
-// ============ PUT: Update report status (Manager) ============
+// ============ PUT: Update report status (Manager/Supervisor) ============
 elseif ($method === 'PUT') {
-    if ($auth['role'] !== 'MANAGER') {
+    if (!in_array($auth['role'], ['MANAGER', 'SUPERVISOR'])) {
         http_response_code(403);
-        echo json_encode(['error' => 'Only managers can update report status']);
+        echo json_encode(['error' => 'Only managers/supervisors can update report status']);
         exit();
     }
 
@@ -211,6 +225,21 @@ elseif ($method === 'PUT') {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid status. Must be APPROVED or REVISION']);
         exit();
+    }
+
+    // Supervisor can only review their team's reports
+    if ($auth['role'] === 'SUPERVISOR') {
+        $checkStmt = $db->prepare("
+            SELECT r.id FROM eod_reports r
+            JOIN users u ON u.id = r.marketing_id
+            WHERE r.id = ? AND u.supervisor_id = ?
+        ");
+        $checkStmt->execute([$data['id'], $auth['id']]);
+        if (!$checkStmt->fetch()) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Can only review reports from your team members']);
+            exit();
+        }
     }
 
     try {

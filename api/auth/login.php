@@ -22,7 +22,7 @@ if (empty($username) || empty($password)) {
 
 try {
     $db = getDB();
-    $stmt = $db->prepare("SELECT id, username, password_hash, name, role, avatar FROM users WHERE username = ?");
+    $stmt = $db->prepare("SELECT id, username, password_hash, name, role, supervisor_id, avatar FROM users WHERE username = ?");
     $stmt->execute([$username]);
     $user = $stmt->fetch();
 
@@ -41,7 +41,8 @@ try {
         'id' => $user['id'],
         'name' => $user['name'],
         'role' => $user['role'],
-        'avatar' => $user['avatar']
+        'avatar' => $user['avatar'],
+        'supervisorId' => $user['supervisor_id'] ?? null
     ]);
 
 } catch (PDOException $e) {

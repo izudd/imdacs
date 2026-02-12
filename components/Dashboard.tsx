@@ -20,7 +20,7 @@ const LINE_COLORS = ['#6366f1', '#8b5cf6', '#ec4899'];
 const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users = [] }) => {
   const [stats, setStats] = useState<api.DashboardStats | null>(null);
   const isManager = user.role === UserRole.MANAGER;
-  const marketingUsers = users.filter(u => u.role === UserRole.MARKETING);
+  const marketingUsers = users.filter(u => u.role === UserRole.MARKETING || u.role === UserRole.SUPERVISOR);
 
   // Manager sees ALL, Marketing sees only theirs
   const myClients = isManager ? clients : clients.filter(c => c.marketingId === user.id);

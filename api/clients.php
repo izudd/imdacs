@@ -18,6 +18,20 @@ if ($method === 'GET') {
                 $sql = "SELECT * FROM clients WHERE marketing_id = ? ORDER BY created_at DESC";
                 $params = [$_GET['marketing_id']];
             }
+        } elseif ($auth['role'] === 'SUPERVISOR') {
+            if (!empty($_GET['scope']) && $_GET['scope'] === 'team') {
+                // Team scope: self + team members
+                $teamStmt = $db->prepare("SELECT id FROM users WHERE supervisor_id = ? OR id = ?");
+                $teamStmt->execute([$auth['id'], $auth['id']]);
+                $teamIds = array_column($teamStmt->fetchAll(), 'id');
+                $placeholders = implode(',', array_fill(0, count($teamIds), '?'));
+                $sql = "SELECT * FROM clients WHERE marketing_id IN ($placeholders) ORDER BY created_at DESC";
+                $params = $teamIds;
+            } else {
+                // Default: own clients only
+                $sql = "SELECT * FROM clients WHERE marketing_id = ? ORDER BY created_at DESC";
+                $params = [$auth['id']];
+            }
         } else {
             // Marketing sees only their clients
             $sql = "SELECT * FROM clients WHERE marketing_id = ? ORDER BY created_at DESC";

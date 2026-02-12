@@ -43,6 +43,7 @@ export interface User {
   name: string;
   role: UserRole;
   avatar?: string;
+  supervisorId?: string;
 }
 
 export interface Client {

@@ -25,7 +25,7 @@ try {
 
     echo "<h2>IMDACS Database Migration</h2>";
 
-    // Check if column already exists
+    // Migration 1: estimated_value column
     $stmt = $pdo->query("SHOW COLUMNS FROM clients LIKE 'estimated_value'");
     if ($stmt->rowCount() === 0) {
         $pdo->exec("ALTER TABLE clients ADD COLUMN estimated_value DECIMAL(15,2) DEFAULT 0 AFTER status");
@@ -33,6 +33,40 @@ try {
     } else {
         echo "<p>ℹ️ Column 'estimated_value' already exists - skipped</p>";
     }
+
+    // Migration 2: Add SUPERVISOR to users role ENUM
+    $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'role'");
+    $roleCol = $stmt->fetch();
+    if ($roleCol && strpos($roleCol['Type'], 'SUPERVISOR') === false) {
+        $pdo->exec("ALTER TABLE users MODIFY COLUMN role ENUM('MARKETING','MANAGER','SUPERVISOR') NOT NULL");
+        echo "<p>✅ SUPERVISOR role added to users ENUM</p>";
+    } else {
+        echo "<p>ℹ️ SUPERVISOR role already exists in ENUM - skipped</p>";
+    }
+
+    // Migration 3: Add supervisor_id column to users
+    $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'supervisor_id'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN supervisor_id VARCHAR(10) DEFAULT NULL AFTER role");
+        echo "<p>✅ Column 'supervisor_id' added to users table</p>";
+    } else {
+        echo "<p>ℹ️ Column 'supervisor_id' already exists - skipped</p>";
+    }
+
+    // Migration 4: Set Delfa as SUPERVISOR, assign team
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = 'm1'");
+    $stmt->execute();
+    $delfa = $stmt->fetch();
+    if ($delfa && $delfa['role'] !== 'SUPERVISOR') {
+        $pdo->exec("UPDATE users SET role = 'SUPERVISOR' WHERE id = 'm1'");
+        echo "<p>✅ Delfa (m1) updated to SUPERVISOR</p>";
+    } else {
+        echo "<p>ℹ️ Delfa already SUPERVISOR - skipped</p>";
+    }
+
+    // Set team members
+    $pdo->exec("UPDATE users SET supervisor_id = 'm1' WHERE id IN ('m2', 'm3')");
+    echo "<p>✅ Abraham (m2) & Ryas (m3) assigned to Delfa's team</p>";
 
     echo "<br><h3>🎉 Migration Complete!</h3>";
 

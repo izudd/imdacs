@@ -181,3 +181,21 @@ export const getMonthlyActivities = () =>
 export const getEODCompliance = (period: 'week' | 'month' = 'month') =>
   request<{ data: EODComplianceData[]; totalMarketing: number; period: string }>
     (`/analytics.php?type=eod_compliance&period=${period}`);
+
+// ============ Team (Supervisor) ============
+export const getTeamActivities = (params?: { date?: string }) => {
+  const base: Record<string, string> = { scope: 'team' };
+  if (params?.date) base.date = params.date;
+  const qs = new URLSearchParams(base).toString();
+  return request<Activity[]>(`/activities.php?${qs}`);
+};
+
+export const getTeamClients = () =>
+  request<Client[]>('/clients.php?scope=team');
+
+export const getTeamReports = (params?: { date?: string }) => {
+  const base: Record<string, string> = { scope: 'team' };
+  if (params?.date) base.date = params.date;
+  const qs = new URLSearchParams(base).toString();
+  return request<EODReport[]>(`/reports.php?${qs}`);
+};
