@@ -13,6 +13,7 @@ import ManagerView from './components/ManagerView';
 import TeamView from './components/TeamView';
 import QuickLog from './components/QuickLog';
 
+const APP_VERSION = '1.3.0';
 const EOD_REMINDER_HOUR = 16;
 const EOD_REMINDER_MINUTE = 30;
 
@@ -204,6 +205,10 @@ const App: React.FC = () => {
               <p className="text-[9px] text-indigo-400 font-bold uppercase tracking-[0.2em]">Marketing System</p>
             </div>
           </div>
+          <span className="mt-2 inline-flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+            <i className="fa-solid fa-code-branch text-[9px] text-indigo-500/40"></i>
+            v{APP_VERSION}
+          </span>
         </div>
 
         {/* Date info */}
@@ -284,6 +289,7 @@ const App: React.FC = () => {
                 <i className="fa-solid fa-bullseye text-white text-xs"></i>
               </div>
               <h1 className="text-lg font-black tracking-tight text-slate-800">IMDACS</h1>
+              <span className="text-[9px] text-slate-400 font-semibold bg-slate-100 px-1.5 py-0.5 rounded-full ml-1">v{APP_VERSION}</span>
             </div>
             <div className="relative">
               <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-100 object-cover" alt="Avatar" />
