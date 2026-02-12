@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { User, UserRole, Client, Activity } from './types';
 import { useAuth } from './contexts/AuthContext';
 import * as api from './services/apiService';
@@ -12,6 +12,9 @@ import EndDayReport from './components/EndDayReport';
 import ManagerView from './components/ManagerView';
 import QuickLog from './components/QuickLog';
 
+const EOD_REMINDER_HOUR = 16;
+const EOD_REMINDER_MINUTE = 30;
+
 const App: React.FC = () => {
   const { user: currentUser, isLoading: authLoading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -20,6 +23,50 @@ const App: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showEodReminder, setShowEodReminder] = useState(true);
+  const [showEodPopup, setShowEodPopup] = useState(false);
+  const eodPopupShownRef = useRef(false);
+
+  // ============ EOD 16:30 Popup Timer ============
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== UserRole.MARKETING) return;
+
+    const todayKey = `eod_popup_${new Date().toISOString().slice(0, 10)}`;
+
+    // Check if already dismissed today
+    if (localStorage.getItem(todayKey) === 'dismissed') {
+      eodPopupShownRef.current = true;
+      return;
+    }
+
+    const checkTime = () => {
+      if (eodPopupShownRef.current) return;
+      const now = new Date();
+      const h = now.getHours();
+      const m = now.getMinutes();
+      if (h > EOD_REMINDER_HOUR || (h === EOD_REMINDER_HOUR && m >= EOD_REMINDER_MINUTE)) {
+        eodPopupShownRef.current = true;
+        setShowEodPopup(true);
+      }
+    };
+
+    // Check immediately on mount
+    checkTime();
+
+    // Then check every 30 seconds
+    const interval = setInterval(checkTime, 30_000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const dismissEodPopup = () => {
+    const todayKey = `eod_popup_${new Date().toISOString().slice(0, 10)}`;
+    localStorage.setItem(todayKey, 'dismissed');
+    setShowEodPopup(false);
+  };
+
+  const goToEodFromPopup = () => {
+    dismissEodPopup();
+    setActiveTab('report');
+  };
 
   const fetchData = useCallback(async () => {
     if (!currentUser) return;
@@ -287,7 +334,7 @@ const App: React.FC = () => {
         </nav>
       </div>
 
-      {/* EOD Floating Reminder */}
+      {/* EOD Floating Reminder (static, always visible until dismissed) */}
       {currentUser.role === UserRole.MARKETING && activeTab !== 'report' && showEodReminder && (
         <div className="fixed bottom-20 lg:bottom-6 right-4 lg:right-6 bg-white shadow-2xl shadow-slate-900/10 rounded-2xl p-4 border border-slate-100 flex items-start gap-3 z-40 max-w-xs animate-slide-up">
           <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 text-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/25">
@@ -309,6 +356,74 @@ const App: React.FC = () => {
           >
             <i className="fa-solid fa-xmark text-xs"></i>
           </button>
+        </div>
+      )}
+
+      {/* EOD 16:30 Popup Notification */}
+      {showEodPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={dismissEodPopup} />
+
+          {/* Popup Card */}
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-sm w-full overflow-hidden animate-slide-up">
+            {/* Gradient Header */}
+            <div className="bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 px-6 pt-8 pb-12 text-center relative overflow-hidden">
+              {/* Background decorations */}
+              <div className="absolute top-0 left-0 w-full h-full opacity-20">
+                <div className="absolute -top-10 -right-10 w-40 h-40 bg-white rounded-full"></div>
+                <div className="absolute -bottom-16 -left-10 w-48 h-48 bg-white rounded-full"></div>
+              </div>
+
+              {/* Bell icon with animation */}
+              <div className="relative inline-flex items-center justify-center mb-4">
+                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <i className="fa-solid fa-bell text-white text-3xl animate-[ring_1s_ease-in-out_infinite]"></i>
+                </div>
+                {/* Pulse rings */}
+                <div className="absolute inset-0 w-20 h-20 bg-white/10 rounded-full animate-ping"></div>
+              </div>
+
+              <h2 className="text-xl font-black text-white relative">Waktunya EOD Report!</h2>
+              <p className="text-sm text-white/80 mt-1 font-medium relative">
+                {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 pt-6 pb-4 -mt-6 relative">
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <i className="fa-solid fa-clock text-amber-600 text-sm"></i>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-amber-900">Sudah jam 16:30!</p>
+                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                      Segera isi dan submit laporan harian (EOD Report) Anda sebelum jam 17:00 ya.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Button */}
+              <button
+                onClick={goToEodFromPopup}
+                className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white rounded-2xl font-bold text-sm transition-all duration-200 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <i className="fa-solid fa-file-lines"></i>
+                Isi EOD Report Sekarang
+              </button>
+
+              {/* Dismiss */}
+              <button
+                onClick={dismissEodPopup}
+                className="w-full py-2.5 text-slate-400 hover:text-slate-600 text-xs font-semibold mt-2 transition-colors"
+              >
+                Nanti saja, ingatkan lagi besok
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
