@@ -84,6 +84,15 @@ try {
         echo "<p>ℹ️ Project tracking columns already exist - skipped</p>";
     }
 
+    // Migration 6: Add dp_proof column to clients (photo bukti DP)
+    $stmt = $pdo->query("SHOW COLUMNS FROM clients LIKE 'dp_proof'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE clients ADD COLUMN dp_proof VARCHAR(500) DEFAULT NULL AFTER dp_paid");
+        echo "<p>✅ Column 'dp_proof' added to clients table (bukti DP foto)</p>";
+    } else {
+        echo "<p>ℹ️ Column 'dp_proof' already exists - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {
