@@ -70,6 +70,12 @@ try {
             marketing_id VARCHAR(10) NOT NULL,
             status ENUM('NEW','FOLLOW_UP','VISIT','PRESENTASI','PENAWARAN','NEGOSIASI','DEAL','LOST','MAINTENANCE') DEFAULT 'NEW',
             estimated_value DECIMAL(15,2) DEFAULT 0,
+            year_work SMALLINT DEFAULT NULL,
+            year_book SMALLINT DEFAULT NULL,
+            service_type VARCHAR(200) DEFAULT '',
+            dpp DECIMAL(15,2) DEFAULT 0,
+            ppn_type ENUM('INCLUDE','EXCLUDE') DEFAULT 'EXCLUDE',
+            dp_paid DECIMAL(15,2) DEFAULT 0,
             last_update DATE DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (marketing_id) REFERENCES users(id)

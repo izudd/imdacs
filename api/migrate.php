@@ -68,6 +68,22 @@ try {
     $pdo->exec("UPDATE users SET supervisor_id = 'm1' WHERE id IN ('m2', 'm3')");
     echo "<p>✅ Abraham (m2) & Ryas (m3) assigned to Delfa's team</p>";
 
+    // Migration 5: Add project tracking fields to clients
+    $stmt = $pdo->query("SHOW COLUMNS FROM clients LIKE 'dpp'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE clients
+            ADD COLUMN year_work SMALLINT DEFAULT NULL,
+            ADD COLUMN year_book SMALLINT DEFAULT NULL,
+            ADD COLUMN service_type VARCHAR(200) DEFAULT '',
+            ADD COLUMN dpp DECIMAL(15,2) DEFAULT 0,
+            ADD COLUMN ppn_type ENUM('INCLUDE','EXCLUDE') DEFAULT 'EXCLUDE',
+            ADD COLUMN dp_paid DECIMAL(15,2) DEFAULT 0
+        ");
+        echo "<p>✅ Project tracking columns added (year_work, year_book, service_type, dpp, ppn_type, dp_paid)</p>";
+    } else {
+        echo "<p>ℹ️ Project tracking columns already exist - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {
