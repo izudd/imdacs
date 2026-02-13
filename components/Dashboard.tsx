@@ -40,6 +40,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
   const [reports, setReports] = useState<EODReport[]>([]);
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
 
+  // Project Tracking state (Manager only)
+  const [projectSearch, setProjectSearch] = useState('');
+  const [projectFilterMarketing, setProjectFilterMarketing] = useState('all');
+  const [projectFilterStatus, setProjectFilterStatus] = useState('all');
+
   useEffect(() => {
     api.getDashboardStats().then(setStats).catch(console.error);
   }, []);
@@ -847,6 +852,153 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
               })}
             </div>
           </div>
+
+          {/* Project Tracking Table */}
+          {(() => {
+            const filteredProjects = clients.filter(c => {
+              const matchSearch = projectSearch === '' || c.name.toLowerCase().includes(projectSearch.toLowerCase());
+              const matchMarketing = projectFilterMarketing === 'all' || c.marketingId === projectFilterMarketing;
+              const matchStatus = projectFilterStatus === 'all' || c.status === projectFilterStatus;
+              return matchSearch && matchMarketing && matchStatus;
+            });
+
+            const totalDpp = filteredProjects.reduce((sum, c) => sum + (c.dpp || 0), 0);
+            const totalDpPaid = filteredProjects.reduce((sum, c) => sum + (c.dpPaid || 0), 0);
+            const totalBersih = totalDpp - totalDpPaid;
+
+            return (
+              <div className="bg-white p-4 lg:p-6 rounded-2xl shadow-sm border border-slate-100">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                    <i className="fa-solid fa-clipboard-list text-indigo-500"></i>
+                    Project Tracking
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <i className="fa-solid fa-search absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-300 text-[10px]"></i>
+                      <input
+                        type="text"
+                        placeholder="Cari nama PT..."
+                        value={projectSearch}
+                        onChange={(e) => setProjectSearch(e.target.value)}
+                        className="pl-7 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 w-40 bg-slate-50"
+                      />
+                    </div>
+                    <select
+                      value={projectFilterMarketing}
+                      onChange={(e) => setProjectFilterMarketing(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 bg-slate-50 text-slate-600"
+                    >
+                      <option value="all">Semua Marketing</option>
+                      {marketingUsers.map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={projectFilterStatus}
+                      onChange={(e) => setProjectFilterStatus(e.target.value)}
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 bg-slate-50 text-slate-600"
+                    >
+                      <option value="all">Semua Status</option>
+                      {Object.values(ClientStatus).map(s => (
+                        <option key={s} value={s}>{s.replace('_', ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Total DPP</p>
+                    <p className="text-sm lg:text-base font-bold text-indigo-700 mt-1">Rp {formatRupiah(totalDpp)}</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Total DP Dibayar</p>
+                    <p className="text-sm lg:text-base font-bold text-amber-700 mt-1">Rp {formatRupiah(totalDpPaid)}</p>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
+                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Total Bersih / Net</p>
+                    <p className={`text-sm lg:text-base font-bold mt-1 ${totalBersih >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>Rp {formatRupiah(totalBersih)}</p>
+                  </div>
+                </div>
+
+                {/* Table */}
+                {filteredProjects.length > 0 ? (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-slate-50 to-slate-100 sticky top-0">
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-center w-12">No</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-left min-w-[180px]">Nama PT</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-left">Marketing</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-center">Thn Kerja</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-center">Thn Buku</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-left min-w-[140px]">Jasa</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-right">DPP</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-center">PPN</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-right">DP (Bukti)</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-right">Bersih</th>
+                          <th className="text-[10px] uppercase tracking-wider font-bold text-slate-500 px-3 py-3 text-center">Progres</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProjects.map((c, idx) => {
+                          const bersih = (c.dpp || 0) - (c.dpPaid || 0);
+                          const marketingName = users.find(u => u.id === c.marketingId)?.name || '-';
+                          return (
+                            <tr key={c.id} className="hover:bg-indigo-50/40 transition-colors border-b border-slate-100 last:border-0">
+                              <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
+                              <td className="px-3 py-2.5">
+                                <p className="font-semibold text-slate-800">{c.name}</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{c.industry}</p>
+                              </td>
+                              <td className="px-3 py-2.5 text-slate-500">{marketingName}</td>
+                              <td className="px-3 py-2.5 text-center text-slate-500">{c.yearWork ?? '-'}</td>
+                              <td className="px-3 py-2.5 text-center text-slate-500">{c.yearBook ?? '-'}</td>
+                              <td className="px-3 py-2.5 text-slate-600">{c.serviceType || '-'}</td>
+                              <td className="px-3 py-2.5 text-right font-medium text-slate-700">Rp {formatRupiah(c.dpp || 0)}</td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold ${c.ppnType === 'INCLUDE' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                  {c.ppnType === 'INCLUDE' ? 'Include' : 'Exclude'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2.5 text-right font-medium text-slate-700">Rp {formatRupiah(c.dpPaid || 0)}</td>
+                              <td className={`px-3 py-2.5 text-right font-bold ${bersih > 0 ? 'text-emerald-600' : bersih < 0 ? 'text-red-500' : 'text-slate-500'}`}>
+                                Rp {formatRupiah(bersih)}
+                              </td>
+                              <td className="px-3 py-2.5 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border ${STATUS_COLORS[c.status]}`}>
+                                  {c.status.replace('_', ' ')}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-slate-50 font-bold">
+                          <td colSpan={6} className="px-3 py-3 text-xs text-slate-700 uppercase tracking-wider">Total</td>
+                          <td className="px-3 py-3 text-right text-xs text-slate-800">Rp {formatRupiah(totalDpp)}</td>
+                          <td className="px-3 py-3"></td>
+                          <td className="px-3 py-3 text-right text-xs text-slate-800">Rp {formatRupiah(totalDpPaid)}</td>
+                          <td className={`px-3 py-3 text-right text-xs font-bold ${totalBersih >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>Rp {formatRupiah(totalBersih)}</td>
+                          <td className="px-3 py-3"></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-slate-300">
+                    <i className="fa-solid fa-folder-open text-4xl mb-3"></i>
+                    <p className="text-sm font-medium text-slate-400">Tidak ada project yang cocok</p>
+                    <p className="text-[10px] text-slate-300 mt-1">Coba ubah filter atau kata kunci pencarian</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </>
       )}
 

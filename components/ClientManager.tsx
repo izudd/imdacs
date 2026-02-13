@@ -24,6 +24,12 @@ const emptyForm = {
   address: '',
   status: ClientStatus.NEW as ClientStatus,
   estimatedValue: 0,
+  yearWork: undefined as number | undefined,
+  yearBook: undefined as number | undefined,
+  serviceType: '',
+  dpp: 0,
+  ppnType: 'EXCLUDE' as 'INCLUDE' | 'EXCLUDE',
+  dpPaid: 0,
 };
 
 function formatCurrency(value: number): string {
@@ -44,6 +50,12 @@ interface ImportRow {
   address: string;
   status: string;
   estimatedValue: number;
+  yearWork?: number;
+  yearBook?: number;
+  serviceType?: string;
+  dpp?: number;
+  ppnType?: string;
+  dpPaid?: number;
 }
 
 const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, activities, onAddClient, onEditClient, onImportClients }) => {
@@ -152,6 +164,12 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
       name: client.name, industry: client.industry, picName: client.picName,
       phone: client.phone || '', email: client.email || '', address: client.address || '',
       status: client.status, estimatedValue: client.estimatedValue || 0,
+      yearWork: (client as any).yearWork || undefined,
+      yearBook: (client as any).yearBook || undefined,
+      serviceType: (client as any).serviceType || '',
+      dpp: (client as any).dpp || 0,
+      ppnType: (client as any).ppnType || 'EXCLUDE',
+      dpPaid: (client as any).dpPaid || 0,
     });
   };
 
@@ -177,7 +195,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
         'EMAIL': 'budi@contoh.com',
         'ALAMAT': 'Jl. Sudirman No. 123, Jakarta',
         'STATUS': 'NEW',
-        'ESTIMASI NILAI': 50000000
+        'ESTIMASI NILAI': 50000000,
+        'TAHUN PENGERJAAN': 2025,
+        'TAHUN BUKU': 2024,
+        'JASA PEKERJAAN': 'Audit Laporan Keuangan',
+        'DPP': 45000000,
+        'PPN': 'EXCLUDE',
+        'DP BUKTI': 10000000
       },
       {
         'NAMA PERUSAHAAN': 'CV Maju Bersama',
@@ -187,7 +211,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
         'EMAIL': 'sari@maju.co.id',
         'ALAMAT': 'Jl. Gatot Subroto No. 45, Bandung',
         'STATUS': 'FOLLOW_UP',
-        'ESTIMASI NILAI': 120000000
+        'ESTIMASI NILAI': 120000000,
+        'TAHUN PENGERJAAN': 2025,
+        'TAHUN BUKU': 2025,
+        'JASA PEKERJAAN': 'Konsultasi Pajak',
+        'DPP': 100000000,
+        'PPN': 'INCLUDE',
+        'DP BUKTI': 25000000
       }
     ];
 
@@ -203,6 +233,12 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
       { wch: 35 }, // ALAMAT
       { wch: 14 }, // STATUS
       { wch: 18 }, // ESTIMASI NILAI
+      { wch: 20 }, // TAHUN PENGERJAAN
+      { wch: 14 }, // TAHUN BUKU
+      { wch: 25 }, // JASA PEKERJAAN
+      { wch: 18 }, // DPP
+      { wch: 12 }, // PPN
+      { wch: 18 }, // DP BUKTI
     ];
 
     const wb = XLSX.utils.book_new();
@@ -218,6 +254,12 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
       { 'Kolom': 'ALAMAT', 'Keterangan': 'Opsional. Alamat lengkap.' },
       { 'Kolom': 'STATUS', 'Keterangan': 'Opsional. Pilihan: NEW, FOLLOW_UP, VISIT, PRESENTASI, PENAWARAN, NEGOSIASI, DEAL, LOST, MAINTENANCE. Default: NEW' },
       { 'Kolom': 'ESTIMASI NILAI', 'Keterangan': 'Opsional. Estimasi nilai proyek dalam Rupiah (angka saja, tanpa titik/koma).' },
+      { 'Kolom': 'TAHUN PENGERJAAN', 'Keterangan': 'Opsional. Tahun pengerjaan proyek (contoh: 2025).' },
+      { 'Kolom': 'TAHUN BUKU', 'Keterangan': 'Opsional. Tahun buku yang diaudit/dikerjakan (contoh: 2024).' },
+      { 'Kolom': 'JASA PEKERJAAN', 'Keterangan': 'Opsional. Jenis jasa pekerjaan (contoh: Audit Laporan Keuangan).' },
+      { 'Kolom': 'DPP', 'Keterangan': 'Opsional. Dasar Pengenaan Pajak dalam Rupiah (angka saja).' },
+      { 'Kolom': 'PPN', 'Keterangan': 'Opsional. Tipe PPN: INCLUDE atau EXCLUDE. Default: EXCLUDE.' },
+      { 'Kolom': 'DP BUKTI', 'Keterangan': 'Opsional. Jumlah DP yang sudah dibayar dalam Rupiah (angka saja).' },
     ];
     const wsInfo = XLSX.utils.json_to_sheet(infoData);
     wsInfo['!cols'] = [{ wch: 20 }, { wch: 80 }];
@@ -265,6 +307,11 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
           let status = get(['STATUS', 'Status', 'status']).toUpperCase().replace(/\s+/g, '_');
           if (!validStatuses.includes(status)) status = 'NEW';
 
+          const yearWorkVal = getNum(['TAHUN PENGERJAAN', 'TAHUN_PENGERJAAN', 'Tahun Pengerjaan', 'YEAR_WORK']);
+          const yearBookVal = getNum(['TAHUN BUKU', 'TAHUN_BUKU', 'Tahun Buku', 'YEAR_BOOK']);
+          let ppnTypeVal = get(['PPN', 'PPN TYPE', 'PPN_TYPE', 'Ppn', 'ppnType']).toUpperCase();
+          if (ppnTypeVal !== 'INCLUDE' && ppnTypeVal !== 'EXCLUDE') ppnTypeVal = '';
+
           return {
             name: get(['NAMA PERUSAHAAN', 'NAMA_PERUSAHAAN', 'PERUSAHAAN', 'Nama Perusahaan', 'Nama', 'NAME', 'BADAN USAHA', 'Company']),
             industry: get(['BIDANG USAHA', 'BIDANG_USAHA', 'BIDANG', 'Bidang Usaha', 'Bidang', 'INDUSTRY', 'Industry']),
@@ -274,6 +321,12 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
             address: get(['ALAMAT', 'Alamat', 'ADDRESS', 'Address']),
             status,
             estimatedValue: getNum(['ESTIMASI NILAI', 'ESTIMASI_NILAI', 'ESTIMASI', 'Estimasi Nilai', 'NILAI', 'Nilai', 'ESTIMATED_VALUE', 'Value']),
+            yearWork: yearWorkVal || undefined,
+            yearBook: yearBookVal || undefined,
+            serviceType: get(['JASA PEKERJAAN', 'JASA_PEKERJAAN', 'Jasa Pekerjaan', 'SERVICE_TYPE']),
+            dpp: getNum(['DPP', 'Dpp', 'DASAR PENGENAAN PAJAK']),
+            ppnType: ppnTypeVal || undefined,
+            dpPaid: getNum(['DP BUKTI', 'DP_BUKTI', 'Dp Bukti', 'DP_PAID']),
           };
         }).filter(r => r.name.length > 0);
 
@@ -311,6 +364,12 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
         address: r.address,
         status: r.status as ClientStatus,
         estimatedValue: r.estimatedValue,
+        yearWork: r.yearWork,
+        yearBook: r.yearBook,
+        serviceType: r.serviceType || '',
+        dpp: r.dpp || 0,
+        ppnType: r.ppnType || 'EXCLUDE',
+        dpPaid: r.dpPaid || 0,
       })));
       setImportResult(result);
       setImportStep('result');
@@ -719,6 +778,61 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                 </div>
               )}
 
+              {/* Detail Proyek */}
+              {((detailClient as any).yearWork || (detailClient as any).yearBook || (detailClient as any).serviceType || (detailClient as any).dpp > 0 || (detailClient as any).dpPaid > 0) && (
+                <div>
+                  <h3 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2">
+                    <i className="fa-solid fa-folder-open text-amber-500"></i>
+                    Detail Proyek
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Tahun Pengerjaan</p>
+                      <p className="font-semibold text-xs mt-1">{(detailClient as any).yearWork || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Tahun Buku</p>
+                      <p className="font-semibold text-xs mt-1">{(detailClient as any).yearBook || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">Jasa Pekerjaan</p>
+                      <p className="font-semibold text-xs mt-1">{(detailClient as any).serviceType || '—'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">DPP</p>
+                      <p className="font-bold text-sm text-emerald-600 mt-1">
+                        {(detailClient as any).dpp > 0 ? formatCurrency((detailClient as any).dpp) : '—'}
+                      </p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">PPN Type</p>
+                      <p className="font-semibold text-xs mt-1">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(detailClient as any).ppnType === 'INCLUDE' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
+                          {(detailClient as any).ppnType || 'EXCLUDE'}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase">DP Dibayar</p>
+                      <p className="font-bold text-sm text-emerald-600 mt-1">
+                        {(detailClient as any).dpPaid > 0 ? formatCurrency((detailClient as any).dpPaid) : '—'}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Bersih calculation */}
+                  {(detailClient as any).dpp > 0 && (
+                    <div className="mt-3 bg-gradient-to-r from-indigo-50 to-blue-50 p-3 rounded-xl border border-indigo-100">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-bold text-indigo-400 uppercase">Bersih (DPP - DP)</p>
+                        <p className="font-bold text-sm text-indigo-700">
+                          {formatCurrency(((detailClient as any).dpp || 0) - ((detailClient as any).dpPaid || 0))}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Activity history */}
               <div>
                 <h3 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2">
@@ -817,6 +931,57 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                     value={formData.estimatedValue || ''} onChange={(e) => setFormData({...formData, estimatedValue: parseFloat(e.target.value) || 0})} />
                 </div>
               </div>
+
+              {/* ─── Detail Proyek (Opsional) ─── */}
+              <div className="relative flex items-center my-2">
+                <div className="flex-1 border-t border-slate-200"></div>
+                <span className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detail Proyek (Opsional)</span>
+                <div className="flex-1 border-t border-slate-200"></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tahun Pengerjaan</label>
+                  <input type="number" min={2020} max={2030} className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="2025"
+                    value={formData.yearWork || ''} onChange={(e) => setFormData({...formData, yearWork: parseInt(e.target.value) || undefined})} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tahun Buku</label>
+                  <input type="number" min={2020} max={2030} className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="2025"
+                    value={formData.yearBook || ''} onChange={(e) => setFormData({...formData, yearBook: parseInt(e.target.value) || undefined})} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Jasa Pekerjaan</label>
+                <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="Jenis jasa pekerjaan"
+                  value={formData.serviceType} onChange={(e) => setFormData({...formData, serviceType: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">DPP (Dasar Pengenaan Pajak)</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Rp</span>
+                  <input type="number" className="w-full border border-slate-200 p-3 pl-10 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="0"
+                    value={formData.dpp || ''} onChange={(e) => setFormData({...formData, dpp: parseFloat(e.target.value) || 0})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">PPN Type</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                    value={formData.ppnType} onChange={(e) => setFormData({...formData, ppnType: e.target.value as 'INCLUDE' | 'EXCLUDE'})}>
+                    <option value="EXCLUDE">EXCLUDE</option>
+                    <option value="INCLUDE">INCLUDE</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">DP Bukti</label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Rp</span>
+                    <input type="number" className="w-full border border-slate-200 p-3 pl-10 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="0"
+                      value={formData.dpPaid || ''} onChange={(e) => setFormData({...formData, dpPaid: parseFloat(e.target.value) || 0})} />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama PIC *</label>
                 <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="Contact person"
@@ -895,6 +1060,57 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                     value={editFormData.estimatedValue || ''} onChange={(e) => setEditFormData({...editFormData, estimatedValue: parseFloat(e.target.value) || 0})} />
                 </div>
               </div>
+
+              {/* ─── Detail Proyek (Opsional) ─── */}
+              <div className="relative flex items-center my-2">
+                <div className="flex-1 border-t border-slate-200"></div>
+                <span className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Detail Proyek (Opsional)</span>
+                <div className="flex-1 border-t border-slate-200"></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tahun Pengerjaan</label>
+                  <input type="number" min={2020} max={2030} className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="2025"
+                    value={editFormData.yearWork || ''} onChange={(e) => setEditFormData({...editFormData, yearWork: parseInt(e.target.value) || undefined})} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tahun Buku</label>
+                  <input type="number" min={2020} max={2030} className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="2025"
+                    value={editFormData.yearBook || ''} onChange={(e) => setEditFormData({...editFormData, yearBook: parseInt(e.target.value) || undefined})} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Jasa Pekerjaan</label>
+                <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="Jenis jasa pekerjaan"
+                  value={editFormData.serviceType} onChange={(e) => setEditFormData({...editFormData, serviceType: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">DPP (Dasar Pengenaan Pajak)</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Rp</span>
+                  <input type="number" className="w-full border border-slate-200 p-3 pl-10 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="0"
+                    value={editFormData.dpp || ''} onChange={(e) => setEditFormData({...editFormData, dpp: parseFloat(e.target.value) || 0})} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">PPN Type</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                    value={editFormData.ppnType} onChange={(e) => setEditFormData({...editFormData, ppnType: e.target.value as 'INCLUDE' | 'EXCLUDE'})}>
+                    <option value="EXCLUDE">EXCLUDE</option>
+                    <option value="INCLUDE">INCLUDE</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">DP Bukti</label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Rp</span>
+                    <input type="number" className="w-full border border-slate-200 p-3 pl-10 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm" placeholder="0"
+                      value={editFormData.dpPaid || ''} onChange={(e) => setEditFormData({...editFormData, dpPaid: parseFloat(e.target.value) || 0})} />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama PIC *</label>
                 <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
@@ -994,7 +1210,7 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                       <i className="fa-solid fa-circle-info"></i> Kolom yang didukung:
                     </p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                      {['NAMA PERUSAHAAN *', 'BIDANG USAHA', 'NAMA PIC', 'NO TELEPON', 'EMAIL', 'ALAMAT', 'STATUS', 'ESTIMASI NILAI'].map(col => (
+                      {['NAMA PERUSAHAAN *', 'BIDANG USAHA', 'NAMA PIC', 'NO TELEPON', 'EMAIL', 'ALAMAT', 'STATUS', 'ESTIMASI NILAI', 'TAHUN PENGERJAAN', 'TAHUN BUKU', 'JASA PEKERJAAN', 'DPP', 'PPN', 'DP BUKTI'].map(col => (
                         <span key={col} className={`text-[10px] px-2 py-1 rounded-lg ${col.includes('*') ? 'bg-red-50 text-red-600 font-bold border border-red-100' : 'bg-white text-slate-500 border border-slate-100'}`}>
                           {col}
                         </span>

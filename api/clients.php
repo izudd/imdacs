@@ -6,6 +6,30 @@ $auth = requireAuth();
 $db = getDB();
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Helper: map DB row to camelCase response
+function mapClient($c) {
+    return [
+        'id' => $c['id'],
+        'name' => $c['name'],
+        'industry' => $c['industry'],
+        'picName' => $c['pic_name'],
+        'phone' => $c['phone'],
+        'email' => $c['email'],
+        'address' => $c['address'],
+        'marketingId' => $c['marketing_id'],
+        'status' => $c['status'],
+        'estimatedValue' => (float)($c['estimated_value'] ?? 0),
+        'yearWork' => $c['year_work'] ? (int)$c['year_work'] : null,
+        'yearBook' => $c['year_book'] ? (int)$c['year_book'] : null,
+        'serviceType' => $c['service_type'] ?? '',
+        'dpp' => (float)($c['dpp'] ?? 0),
+        'ppnType' => $c['ppn_type'] ?? 'EXCLUDE',
+        'dpPaid' => (float)($c['dp_paid'] ?? 0),
+        'lastUpdate' => $c['last_update'],
+        'createdAt' => $c['created_at']
+    ];
+}
+
 // ============ GET: List clients ============
 if ($method === 'GET') {
     try {
@@ -57,22 +81,7 @@ if ($method === 'GET') {
         $clients = $stmt->fetchAll();
 
         // Map snake_case to camelCase
-        $result = array_map(function($c) {
-            return [
-                'id' => $c['id'],
-                'name' => $c['name'],
-                'industry' => $c['industry'],
-                'picName' => $c['pic_name'],
-                'phone' => $c['phone'],
-                'email' => $c['email'],
-                'address' => $c['address'],
-                'marketingId' => $c['marketing_id'],
-                'status' => $c['status'],
-                'estimatedValue' => (float)($c['estimated_value'] ?? 0),
-                'lastUpdate' => $c['last_update'],
-                'createdAt' => $c['created_at']
-            ];
-        }, $clients);
+        $result = array_map('mapClient', $clients);
 
         echo json_encode($result);
     } catch (PDOException $e) {
@@ -96,8 +105,8 @@ elseif ($method === 'POST') {
         $now = date('Y-m-d');
 
         $stmt = $db->prepare("
-            INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, last_update, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, year_work, year_book, service_type, dpp, ppn_type, dp_paid, last_update, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $stmt->execute([
             $id,
@@ -110,6 +119,12 @@ elseif ($method === 'POST') {
             $auth['id'],
             $data['status'] ?? 'NEW',
             $data['estimatedValue'] ?? 0,
+            !empty($data['yearWork']) ? (int)$data['yearWork'] : null,
+            !empty($data['yearBook']) ? (int)$data['yearBook'] : null,
+            $data['serviceType'] ?? '',
+            $data['dpp'] ?? 0,
+            $data['ppnType'] ?? 'EXCLUDE',
+            $data['dpPaid'] ?? 0,
             $now
         ]);
 
@@ -118,20 +133,7 @@ elseif ($method === 'POST') {
         $stmt->execute([$id]);
         $c = $stmt->fetch();
 
-        echo json_encode([
-            'id' => $c['id'],
-            'name' => $c['name'],
-            'industry' => $c['industry'],
-            'picName' => $c['pic_name'],
-            'phone' => $c['phone'],
-            'email' => $c['email'],
-            'address' => $c['address'],
-            'marketingId' => $c['marketing_id'],
-            'status' => $c['status'],
-            'estimatedValue' => (float)($c['estimated_value'] ?? 0),
-            'lastUpdate' => $c['last_update'],
-            'createdAt' => $c['created_at']
-        ]);
+        echo json_encode(mapClient($c));
 
     } catch (PDOException $e) {
         http_response_code(500);
@@ -174,8 +176,8 @@ elseif ($method === 'PATCH') {
             $now = date('Y-m-d');
 
             $stmt = $db->prepare("
-                INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, last_update, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, year_work, year_book, service_type, dpp, ppn_type, dp_paid, last_update, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $stmt->execute([
                 $id,
@@ -188,6 +190,12 @@ elseif ($method === 'PATCH') {
                 $auth['id'],
                 trim($row['status'] ?? 'NEW') ?: 'NEW',
                 floatval($row['estimatedValue'] ?? 0),
+                !empty($row['yearWork']) ? (int)$row['yearWork'] : null,
+                !empty($row['yearBook']) ? (int)$row['yearBook'] : null,
+                trim($row['serviceType'] ?? ''),
+                floatval($row['dpp'] ?? 0),
+                trim($row['ppnType'] ?? 'EXCLUDE') ?: 'EXCLUDE',
+                floatval($row['dpPaid'] ?? 0),
                 $now
             ]);
 
@@ -196,20 +204,7 @@ elseif ($method === 'PATCH') {
             $fetchStmt->execute([$id]);
             $c = $fetchStmt->fetch();
 
-            $imported[] = [
-                'id' => $c['id'],
-                'name' => $c['name'],
-                'industry' => $c['industry'],
-                'picName' => $c['pic_name'],
-                'phone' => $c['phone'],
-                'email' => $c['email'],
-                'address' => $c['address'],
-                'marketingId' => $c['marketing_id'],
-                'status' => $c['status'],
-                'estimatedValue' => (float)($c['estimated_value'] ?? 0),
-                'lastUpdate' => $c['last_update'],
-                'createdAt' => $c['created_at']
-            ];
+            $imported[] = mapClient($c);
         }
 
         $db->commit();
@@ -250,7 +245,13 @@ elseif ($method === 'PUT') {
             'email' => 'email',
             'address' => 'address',
             'status' => 'status',
-            'estimatedValue' => 'estimated_value'
+            'estimatedValue' => 'estimated_value',
+            'yearWork' => 'year_work',
+            'yearBook' => 'year_book',
+            'serviceType' => 'service_type',
+            'dpp' => 'dpp',
+            'ppnType' => 'ppn_type',
+            'dpPaid' => 'dp_paid'
         ];
 
         foreach ($mapping as $jsonKey => $dbKey) {
@@ -279,20 +280,7 @@ elseif ($method === 'PUT') {
         $stmt->execute([$data['id']]);
         $c = $stmt->fetch();
 
-        echo json_encode([
-            'id' => $c['id'],
-            'name' => $c['name'],
-            'industry' => $c['industry'],
-            'picName' => $c['pic_name'],
-            'phone' => $c['phone'],
-            'email' => $c['email'],
-            'address' => $c['address'],
-            'marketingId' => $c['marketing_id'],
-            'status' => $c['status'],
-            'estimatedValue' => (float)($c['estimated_value'] ?? 0),
-            'lastUpdate' => $c['last_update'],
-            'createdAt' => $c['created_at']
-        ]);
+        echo json_encode(mapClient($c));
 
     } catch (PDOException $e) {
         http_response_code(500);

@@ -57,6 +57,12 @@ export interface Client {
   marketingId: string;
   status: ClientStatus;
   estimatedValue: number;
+  yearWork?: number;
+  yearBook?: number;
+  serviceType: string;
+  dpp: number;
+  ppnType: 'INCLUDE' | 'EXCLUDE';
+  dpPaid: number;
   lastUpdate: string;
   createdAt: string;
 }
