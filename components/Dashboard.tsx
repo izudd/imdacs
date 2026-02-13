@@ -44,6 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
   const [projectSearch, setProjectSearch] = useState('');
   const [projectFilterMarketing, setProjectFilterMarketing] = useState('all');
   const [projectFilterStatus, setProjectFilterStatus] = useState('all');
+  const [dpProofLightbox, setDpProofLightbox] = useState('');
 
   useEffect(() => {
     api.getDashboardStats().then(setStats).catch(console.error);
@@ -964,7 +965,16 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
                                   {c.ppnType === 'INCLUDE' ? 'Include' : 'Exclude'}
                                 </span>
                               </td>
-                              <td className="px-3 py-2.5 text-right font-medium text-slate-700">Rp {formatRupiah(c.dpPaid || 0)}</td>
+                              <td className="px-3 py-2.5">
+                                <div className="flex items-center justify-end gap-2">
+                                  {c.dpProof && (
+                                    <button onClick={() => setDpProofLightbox(c.dpProof || '')} className="flex-shrink-0 group/img" title="Lihat bukti DP">
+                                      <img src={c.dpProof} alt="Bukti" className="w-8 h-8 rounded-lg object-cover border-2 border-emerald-200 group-hover/img:border-indigo-400 transition-all shadow-sm" />
+                                    </button>
+                                  )}
+                                  <span className="font-medium text-slate-700 text-right">Rp {formatRupiah(c.dpPaid || 0)}</span>
+                                </div>
+                              </td>
                               <td className={`px-3 py-2.5 text-right font-bold ${bersih > 0 ? 'text-emerald-600' : bersih < 0 ? 'text-red-500' : 'text-slate-500'}`}>
                                 Rp {formatRupiah(bersih)}
                               </td>
@@ -1040,6 +1050,19 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
           </div>
         )}
       </div>
+
+      {/* DP Proof Lightbox */}
+      {dpProofLightbox && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setDpProofLightbox('')}>
+          <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setDpProofLightbox('')}
+              className="absolute -top-3 -right-3 w-9 h-9 bg-white text-slate-600 rounded-full flex items-center justify-center shadow-lg hover:bg-slate-100 z-10">
+              <i className="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <img src={dpProofLightbox} alt="Bukti DP" className="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

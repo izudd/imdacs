@@ -3,7 +3,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { Client, ClientStatus, User, UserRole, Activity } from '../types';
 import { STATUS_COLORS } from '../constants';
-import { ImportResult } from '../services/apiService';
+import { ImportResult, uploadPhoto } from '../services/apiService';
 
 interface ClientManagerProps {
   user: User;
@@ -30,6 +30,7 @@ const emptyForm = {
   dpp: 0,
   ppnType: 'EXCLUDE' as 'INCLUDE' | 'EXCLUDE',
   dpPaid: 0,
+  dpProof: '' as string,
 };
 
 function formatCurrency(value: number): string {
@@ -78,6 +79,17 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
   const [isImporting, setIsImporting] = useState(false);
   const [importFileName, setImportFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // DP Proof upload states
+  const [dpProofFile, setDpProofFile] = useState<File | null>(null);
+  const [dpProofPreview, setDpProofPreview] = useState<string>('');
+  const [editDpProofFile, setEditDpProofFile] = useState<File | null>(null);
+  const [editDpProofPreview, setEditDpProofPreview] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const dpProofInputRef = useRef<HTMLInputElement>(null);
+  const editDpProofInputRef = useRef<HTMLInputElement>(null);
+  // Lightbox state for viewing proof images
+  const [lightboxUrl, setLightboxUrl] = useState<string>('');
 
   const isManager = user.role === UserRole.MANAGER;
   const marketingUsers = useMemo(() => users.filter(u => u.role === UserRole.MARKETING), [users]);
@@ -149,13 +161,44 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
     return users.find(m => m.id === marketingId)?.avatar;
   };
 
+  const handleDpProofSelect = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
+      alert('Hanya file JPG/PNG yang diperbolehkan'); return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Ukuran file maksimal 5MB'); return;
+    }
+    const preview = URL.createObjectURL(file);
+    if (isEdit) {
+      setEditDpProofFile(file);
+      setEditDpProofPreview(preview);
+    } else {
+      setDpProofFile(file);
+      setDpProofPreview(preview);
+    }
+  };
+
   const handleSave = async () => {
     if (!formData.name.trim() || !formData.industry.trim() || !formData.picName.trim()) {
       alert('Nama Perusahaan, Bidang Usaha, dan PIC wajib diisi'); return;
     }
     setIsSaving(true);
-    try { await onAddClient(formData); setFormData(emptyForm); setIsAdding(false); }
-    catch {} finally { setIsSaving(false); }
+    try {
+      let dpProofUrl = formData.dpProof || '';
+      if (dpProofFile) {
+        setIsUploading(true);
+        const fd = new FormData();
+        fd.append('photo', dpProofFile);
+        const res = await uploadPhoto(fd);
+        dpProofUrl = res.url;
+        setIsUploading(false);
+      }
+      await onAddClient({ ...formData, dpProof: dpProofUrl || undefined });
+      setFormData(emptyForm); setDpProofFile(null); setDpProofPreview(''); setIsAdding(false);
+    }
+    catch {} finally { setIsSaving(false); setIsUploading(false); }
   };
 
   const openEdit = (client: Client) => {
@@ -164,13 +207,16 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
       name: client.name, industry: client.industry, picName: client.picName,
       phone: client.phone || '', email: client.email || '', address: client.address || '',
       status: client.status, estimatedValue: client.estimatedValue || 0,
-      yearWork: (client as any).yearWork || undefined,
-      yearBook: (client as any).yearBook || undefined,
-      serviceType: (client as any).serviceType || '',
-      dpp: (client as any).dpp || 0,
-      ppnType: (client as any).ppnType || 'EXCLUDE',
-      dpPaid: (client as any).dpPaid || 0,
+      yearWork: client.yearWork || undefined,
+      yearBook: client.yearBook || undefined,
+      serviceType: client.serviceType || '',
+      dpp: client.dpp || 0,
+      ppnType: client.ppnType || 'EXCLUDE',
+      dpPaid: client.dpPaid || 0,
+      dpProof: client.dpProof || '',
     });
+    setEditDpProofFile(null);
+    setEditDpProofPreview('');
   };
 
   const handleEditSave = async () => {
@@ -179,8 +225,20 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
       alert('Nama Perusahaan, Bidang Usaha, dan PIC wajib diisi'); return;
     }
     setIsSaving(true);
-    try { await onEditClient({ id: editingClient.id, ...editFormData }); setEditingClient(null); }
-    catch {} finally { setIsSaving(false); }
+    try {
+      let dpProofUrl = editFormData.dpProof || '';
+      if (editDpProofFile) {
+        setIsUploading(true);
+        const fd = new FormData();
+        fd.append('photo', editDpProofFile);
+        const res = await uploadPhoto(fd);
+        dpProofUrl = res.url;
+        setIsUploading(false);
+      }
+      await onEditClient({ id: editingClient.id, ...editFormData, dpProof: dpProofUrl || undefined });
+      setEditingClient(null); setEditDpProofFile(null); setEditDpProofPreview('');
+    }
+    catch {} finally { setIsSaving(false); setIsUploading(false); }
   };
 
   // ═══ IMPORT FUNCTIONS ═══
@@ -779,7 +837,7 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
               )}
 
               {/* Detail Proyek */}
-              {((detailClient as any).yearWork || (detailClient as any).yearBook || (detailClient as any).serviceType || (detailClient as any).dpp > 0 || (detailClient as any).dpPaid > 0) && (
+              {(detailClient.yearWork || detailClient.yearBook || detailClient.serviceType || detailClient.dpp > 0 || detailClient.dpPaid > 0) && (
                 <div>
                   <h3 className="font-bold text-sm text-slate-800 mb-3 flex items-center gap-2">
                     <i className="fa-solid fa-folder-open text-amber-500"></i>
@@ -788,44 +846,58 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     <div className="bg-slate-50 p-3 rounded-xl">
                       <p className="text-[9px] font-bold text-slate-400 uppercase">Tahun Pengerjaan</p>
-                      <p className="font-semibold text-xs mt-1">{(detailClient as any).yearWork || '—'}</p>
+                      <p className="font-semibold text-xs mt-1">{detailClient.yearWork || '—'}</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl">
                       <p className="text-[9px] font-bold text-slate-400 uppercase">Tahun Buku</p>
-                      <p className="font-semibold text-xs mt-1">{(detailClient as any).yearBook || '—'}</p>
+                      <p className="font-semibold text-xs mt-1">{detailClient.yearBook || '—'}</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl">
                       <p className="text-[9px] font-bold text-slate-400 uppercase">Jasa Pekerjaan</p>
-                      <p className="font-semibold text-xs mt-1">{(detailClient as any).serviceType || '—'}</p>
+                      <p className="font-semibold text-xs mt-1">{detailClient.serviceType || '—'}</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl">
                       <p className="text-[9px] font-bold text-slate-400 uppercase">DPP</p>
                       <p className="font-bold text-sm text-emerald-600 mt-1">
-                        {(detailClient as any).dpp > 0 ? formatCurrency((detailClient as any).dpp) : '—'}
+                        {detailClient.dpp > 0 ? formatCurrency(detailClient.dpp) : '—'}
                       </p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl">
                       <p className="text-[9px] font-bold text-slate-400 uppercase">PPN Type</p>
                       <p className="font-semibold text-xs mt-1">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(detailClient as any).ppnType === 'INCLUDE' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
-                          {(detailClient as any).ppnType || 'EXCLUDE'}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${detailClient.ppnType === 'INCLUDE' ? 'bg-blue-50 text-blue-600 border border-blue-200' : 'bg-amber-50 text-amber-600 border border-amber-200'}`}>
+                          {detailClient.ppnType || 'EXCLUDE'}
                         </span>
                       </p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl">
                       <p className="text-[9px] font-bold text-slate-400 uppercase">DP Dibayar</p>
                       <p className="font-bold text-sm text-emerald-600 mt-1">
-                        {(detailClient as any).dpPaid > 0 ? formatCurrency((detailClient as any).dpPaid) : '—'}
+                        {detailClient.dpPaid > 0 ? formatCurrency(detailClient.dpPaid) : '—'}
                       </p>
                     </div>
                   </div>
+                  {/* Bukti DP Photo */}
+                  {detailClient.dpProof && (
+                    <div className="mt-3">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase mb-2">
+                        <i className="fa-solid fa-image text-indigo-400 mr-1"></i>Bukti DP
+                      </p>
+                      <img
+                        src={detailClient.dpProof}
+                        alt="Bukti DP"
+                        className="w-full max-h-48 object-cover rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => setLightboxUrl(detailClient.dpProof || '')}
+                      />
+                    </div>
+                  )}
                   {/* Bersih calculation */}
-                  {(detailClient as any).dpp > 0 && (
+                  {detailClient.dpp > 0 && (
                     <div className="mt-3 bg-gradient-to-r from-indigo-50 to-blue-50 p-3 rounded-xl border border-indigo-100">
                       <div className="flex items-center justify-between">
                         <p className="text-[9px] font-bold text-indigo-400 uppercase">Bersih (DPP - DP)</p>
                         <p className="font-bold text-sm text-indigo-700">
-                          {formatCurrency(((detailClient as any).dpp || 0) - ((detailClient as any).dpPaid || 0))}
+                          {formatCurrency((detailClient.dpp || 0) - (detailClient.dpPaid || 0))}
                         </p>
                       </div>
                     </div>
@@ -981,6 +1053,27 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                   </div>
                 </div>
               </div>
+              {/* Foto Bukti DP */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Foto Bukti DP (Opsional)</label>
+                <input ref={dpProofInputRef} type="file" accept="image/jpeg,image/png,image/jpg" className="hidden" onChange={(e) => handleDpProofSelect(e, false)} />
+                {dpProofPreview ? (
+                  <div className="relative group">
+                    <img src={dpProofPreview} alt="Preview bukti DP" className="w-full h-40 object-cover rounded-xl border border-slate-200" />
+                    <button onClick={() => { setDpProofFile(null); setDpProofPreview(''); if (dpProofInputRef.current) dpProofInputRef.current.value = ''; }}
+                      className="absolute top-2 right-2 w-7 h-7 bg-red-500 text-white rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                      <i className="fa-solid fa-trash text-xs"></i>
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => dpProofInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-indigo-300 hover:bg-indigo-50/30 transition-all">
+                    <i className="fa-solid fa-camera text-slate-300 text-lg mb-1"></i>
+                    <p className="text-xs text-slate-400">Klik untuk upload foto bukti DP</p>
+                    <p className="text-[10px] text-slate-300 mt-0.5">JPG/PNG, Maks 5MB</p>
+                  </button>
+                )}
+              </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama PIC *</label>
@@ -1006,10 +1099,10 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
               </div>
             </div>
             <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0">
-              <button onClick={() => { setIsAdding(false); setFormData(emptyForm); }} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
-              <button onClick={handleSave} disabled={isSaving}
+              <button onClick={() => { setIsAdding(false); setFormData(emptyForm); setDpProofFile(null); setDpProofPreview(''); }} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
+              <button onClick={handleSave} disabled={isSaving || isUploading}
                 className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 flex items-center gap-2 text-sm active:scale-[0.98]">
-                {isSaving ? <><i className="fa-solid fa-spinner fa-spin"></i>Saving...</> : <><i className="fa-solid fa-check"></i>Save Client</>}
+                {isSaving ? <><i className="fa-solid fa-spinner fa-spin"></i>{isUploading ? 'Uploading...' : 'Saving...'}</> : <><i className="fa-solid fa-check"></i>Save Client</>}
               </button>
             </div>
           </div>
@@ -1110,6 +1203,34 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                   </div>
                 </div>
               </div>
+              {/* Foto Bukti DP */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Foto Bukti DP (Opsional)</label>
+                <input ref={editDpProofInputRef} type="file" accept="image/jpeg,image/png,image/jpg" className="hidden" onChange={(e) => handleDpProofSelect(e, true)} />
+                {(editDpProofPreview || editFormData.dpProof) ? (
+                  <div className="relative group">
+                    <img src={editDpProofPreview || editFormData.dpProof} alt="Bukti DP" className="w-full h-40 object-cover rounded-xl border border-slate-200 cursor-pointer"
+                      onClick={() => setLightboxUrl(editDpProofPreview || editFormData.dpProof)} />
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => editDpProofInputRef.current?.click()}
+                        className="w-7 h-7 bg-indigo-500 text-white rounded-lg flex items-center justify-center shadow-lg">
+                        <i className="fa-solid fa-pen text-xs"></i>
+                      </button>
+                      <button onClick={() => { setEditDpProofFile(null); setEditDpProofPreview(''); setEditFormData({...editFormData, dpProof: ''}); if (editDpProofInputRef.current) editDpProofInputRef.current.value = ''; }}
+                        className="w-7 h-7 bg-red-500 text-white rounded-lg flex items-center justify-center shadow-lg">
+                        <i className="fa-solid fa-trash text-xs"></i>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => editDpProofInputRef.current?.click()}
+                    className="w-full border-2 border-dashed border-slate-200 rounded-xl p-4 text-center hover:border-indigo-300 hover:bg-indigo-50/30 transition-all">
+                    <i className="fa-solid fa-camera text-slate-300 text-lg mb-1"></i>
+                    <p className="text-xs text-slate-400">Klik untuk upload foto bukti DP</p>
+                    <p className="text-[10px] text-slate-300 mt-0.5">JPG/PNG, Maks 5MB</p>
+                  </button>
+                )}
+              </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama PIC *</label>
@@ -1135,10 +1256,10 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
               </div>
             </div>
             <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0">
-              <button onClick={() => setEditingClient(null)} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
-              <button onClick={handleEditSave} disabled={isSaving}
+              <button onClick={() => { setEditingClient(null); setEditDpProofFile(null); setEditDpProofPreview(''); }} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
+              <button onClick={handleEditSave} disabled={isSaving || isUploading}
                 className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 flex items-center gap-2 text-sm active:scale-[0.98]">
-                {isSaving ? <><i className="fa-solid fa-spinner fa-spin"></i>Saving...</> : <><i className="fa-solid fa-check"></i>Update Client</>}
+                {isSaving ? <><i className="fa-solid fa-spinner fa-spin"></i>{isUploading ? 'Uploading...' : 'Saving...'}</> : <><i className="fa-solid fa-check"></i>Update Client</>}
               </button>
             </div>
           </div>
@@ -1389,6 +1510,18 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
         </div>
       )}
 
+      {/* ═══ LIGHTBOX MODAL ═══ */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setLightboxUrl('')}>
+          <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setLightboxUrl('')}
+              className="absolute -top-3 -right-3 w-9 h-9 bg-white text-slate-600 rounded-full flex items-center justify-center shadow-lg hover:bg-slate-100 z-10">
+              <i className="fa-solid fa-xmark text-sm"></i>
+            </button>
+            <img src={lightboxUrl} alt="Bukti DP" className="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
