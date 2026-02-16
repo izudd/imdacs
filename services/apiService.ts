@@ -130,6 +130,12 @@ export const updateReportStatus = (id: string, status: ReportStatus) =>
 // ============ Users ============
 export const getUsers = () => request<User[]>('/users.php');
 
+export const createUser = (data: { name: string; username: string; password: string; role: string; supervisorId?: string | null }) =>
+  request<User>('/users.php', { method: 'POST', body: JSON.stringify(data) });
+
+export const updateUser = (data: { id: string; name?: string; role?: string; supervisorId?: string | null; isActive?: boolean; password?: string }) =>
+  request<User>('/users.php', { method: 'PUT', body: JSON.stringify(data) });
+
 // ============ Dashboard ============
 export interface DashboardStats {
   totalClients: number;

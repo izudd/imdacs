@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { User, Client, Activity, EODReport, UserRole, ReportStatus, ClientStatus } from '../types';
 import { REPORT_STATUS_BADGE } from '../constants';
 import * as api from '../services/apiService';
@@ -20,9 +20,103 @@ interface ManagerViewProps {
 }
 
 const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activities }) => {
+  const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview');
   const [selectedMarketing, setSelectedMarketing] = useState<string>('all');
   const [reports, setReports] = useState<EODReport[]>([]);
   const [reviewingReport, setReviewingReport] = useState<EODReport | null>(null);
+
+  // User management states
+  const [managedUsers, setManagedUsers] = useState<User[]>([]);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [userFormData, setUserFormData] = useState({ name: '', username: '', password: '', role: 'MARKETING' as string, supervisorId: '' });
+  const [resetPassword, setResetPassword] = useState('');
+  const [userSaving, setUserSaving] = useState(false);
+  const [userError, setUserError] = useState('');
+  const [userSuccess, setUserSuccess] = useState('');
+
+  const loadUsers = useCallback(() => {
+    api.getUsers().then(setManagedUsers).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'users') loadUsers();
+  }, [activeTab, loadUsers]);
+
+  const supervisors = useMemo(() => managedUsers.filter(u => u.role === UserRole.SUPERVISOR), [managedUsers]);
+
+  const handleCreateUser = async () => {
+    if (!userFormData.name.trim() || !userFormData.username.trim() || !userFormData.password) {
+      setUserError('Nama, username, dan password wajib diisi'); return;
+    }
+    if (userFormData.password.length < 6) {
+      setUserError('Password minimal 6 karakter'); return;
+    }
+    setUserSaving(true); setUserError('');
+    try {
+      await api.createUser({
+        name: userFormData.name,
+        username: userFormData.username.toLowerCase(),
+        password: userFormData.password,
+        role: userFormData.role,
+        supervisorId: userFormData.supervisorId || null,
+      });
+      setShowAddUser(false);
+      setUserFormData({ name: '', username: '', password: '', role: 'MARKETING', supervisorId: '' });
+      setUserSuccess('User berhasil ditambahkan!');
+      loadUsers();
+      setTimeout(() => setUserSuccess(''), 3000);
+    } catch (err: unknown) {
+      setUserError(err instanceof Error ? err.message : 'Gagal membuat user');
+    } finally { setUserSaving(false); }
+  };
+
+  const handleEditUser = async () => {
+    if (!editingUser) return;
+    if (!userFormData.name.trim()) { setUserError('Nama wajib diisi'); return; }
+    setUserSaving(true); setUserError('');
+    try {
+      await api.updateUser({
+        id: editingUser.id,
+        name: userFormData.name,
+        role: userFormData.role,
+        supervisorId: userFormData.supervisorId || null,
+      });
+      setEditingUser(null);
+      setUserSuccess('User berhasil diupdate!');
+      loadUsers();
+      setTimeout(() => setUserSuccess(''), 3000);
+    } catch (err: unknown) {
+      setUserError(err instanceof Error ? err.message : 'Gagal update user');
+    } finally { setUserSaving(false); }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetPasswordUser) return;
+    if (resetPassword.length < 6) { setUserError('Password minimal 6 karakter'); return; }
+    setUserSaving(true); setUserError('');
+    try {
+      await api.updateUser({ id: resetPasswordUser.id, password: resetPassword });
+      setResetPasswordUser(null);
+      setResetPassword('');
+      setUserSuccess('Password berhasil direset!');
+      setTimeout(() => setUserSuccess(''), 3000);
+    } catch (err: unknown) {
+      setUserError(err instanceof Error ? err.message : 'Gagal reset password');
+    } finally { setUserSaving(false); }
+  };
+
+  const handleToggleActive = async (u: User) => {
+    try {
+      await api.updateUser({ id: u.id, isActive: !u.isActive });
+      setUserSuccess(`User ${u.name} ${u.isActive ? 'dinonaktifkan' : 'diaktifkan'}!`);
+      loadUsers();
+      setTimeout(() => setUserSuccess(''), 3000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal update status');
+    }
+  };
 
   const marketingUsers = users.filter(u => u.role === UserRole.MARKETING || u.role === UserRole.SUPERVISOR);
   const marketingIds = new Set(marketingUsers.map(m => m.id));
@@ -128,20 +222,285 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
         <div>
           <h1 className="text-2xl lg:text-3xl font-bold text-slate-800">Manager Oversight</h1>
           <p className="text-slate-500 text-sm mt-0.5">
-            {selectedName
-              ? <>Monitoring performa <span className="font-semibold text-indigo-600">{selectedName}</span></>
-              : 'Monitoring & Performance Evaluation Dashboard'
+            {activeTab === 'users'
+              ? 'Kelola akun tim marketing'
+              : selectedName
+                ? <>Monitoring performa <span className="font-semibold text-indigo-600">{selectedName}</span></>
+                : 'Monitoring & Performance Evaluation Dashboard'
             }
           </p>
         </div>
-        <select
-          className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 min-w-[200px]"
-          value={selectedMarketing} onChange={(e) => setSelectedMarketing(e.target.value)}>
-          <option value="all">All Marketing Team</option>
-          {marketingUsers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
+        <div className="flex items-center gap-2">
+          <div className="bg-white border border-slate-200 rounded-xl p-1 flex shadow-sm">
+            <button onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'overview' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
+              <i className="fa-solid fa-chart-line mr-1.5"></i>Overview
+            </button>
+            <button onClick={() => setActiveTab('users')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'users' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
+              <i className="fa-solid fa-users-gear mr-1.5"></i>Users
+            </button>
+          </div>
+          {activeTab === 'overview' && (
+            <select
+              className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium shadow-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 min-w-[200px]"
+              value={selectedMarketing} onChange={(e) => setSelectedMarketing(e.target.value)}>
+              <option value="all">All Marketing Team</option>
+              {marketingUsers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          )}
+        </div>
       </div>
 
+      {/* Success toast */}
+      {userSuccess && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in">
+          <i className="fa-solid fa-circle-check"></i>{userSuccess}
+        </div>
+      )}
+
+      {/* ═══ USER MANAGEMENT TAB ═══ */}
+      {activeTab === 'users' && (
+        <div className="space-y-4">
+          {/* Add User Button */}
+          <div className="flex justify-end">
+            <button onClick={() => { setShowAddUser(true); setUserFormData({ name: '', username: '', password: '', role: 'MARKETING', supervisorId: '' }); setUserError(''); }}
+              className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 text-sm flex items-center gap-2 active:scale-[0.98]">
+              <i className="fa-solid fa-user-plus"></i>Tambah User
+            </button>
+          </div>
+
+          {/* Users Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b border-slate-100">
+                    <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">User</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Username</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Role</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Supervisor</th>
+                    <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client</th>
+                    <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {managedUsers.filter(u => u.role !== UserRole.MANAGER).map(u => (
+                    <tr key={u.id} className={`hover:bg-slate-50/50 transition-colors ${u.isActive === false ? 'opacity-50' : ''}`}>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <img src={u.avatar} className="w-9 h-9 rounded-full object-cover border border-slate-100" alt={u.name} />
+                          <span className="font-semibold text-sm text-slate-800">{u.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500 font-mono">{u.username || '-'}</td>
+                      <td className="px-4 py-3.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                          u.role === UserRole.SUPERVISOR ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' : 'bg-purple-100 text-purple-700 border border-purple-200'
+                        }`}>{u.role}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-xs text-slate-500">
+                        {u.supervisorId ? managedUsers.find(s => s.id === u.supervisorId)?.name || '-' : <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-lg text-xs font-bold">{u.clientCount || 0}</span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${u.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                          {u.isActive !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => {
+                            setEditingUser(u);
+                            setUserFormData({ name: u.name, username: u.username || '', password: '', role: u.role, supervisorId: u.supervisorId || '' });
+                            setUserError('');
+                          }} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors" title="Edit">
+                            <i className="fa-solid fa-pen text-[10px]"></i>
+                          </button>
+                          <button onClick={() => { setResetPasswordUser(u); setResetPassword(''); setUserError(''); }}
+                            className="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-600 flex items-center justify-center transition-colors" title="Reset Password">
+                            <i className="fa-solid fa-key text-[10px]"></i>
+                          </button>
+                          <button onClick={() => handleToggleActive(u)}
+                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${u.isActive !== false ? 'bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-600' : 'bg-green-100 text-green-600 hover:bg-green-200'}`}
+                            title={u.isActive !== false ? 'Nonaktifkan' : 'Aktifkan'}>
+                            <i className={`fa-solid ${u.isActive !== false ? 'fa-user-slash' : 'fa-user-check'} text-[10px]`}></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Manager Info */}
+          <div className="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl shadow-xl p-5 text-white">
+            <h3 className="font-bold text-sm mb-3 flex items-center gap-2 text-indigo-400">
+              <i className="fa-solid fa-shield-halved"></i>Manager Account
+            </h3>
+            {managedUsers.filter(u => u.role === UserRole.MANAGER).map(m => (
+              <div key={m.id} className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+                <img src={m.avatar} className="w-10 h-10 rounded-full object-cover border-2 border-indigo-400" alt={m.name} />
+                <div>
+                  <p className="font-bold text-sm">{m.name}</p>
+                  <p className="text-[10px] text-slate-400 font-mono">{m.username || m.id}</p>
+                </div>
+                <span className="ml-auto px-2 py-0.5 rounded-full text-[9px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">MANAGER</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ADD USER MODAL ═══ */}
+      {showAddUser && (
+        <div className="fixed inset-0 bg-black/40 glass z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-slide-up">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Tambah User Baru</h2>
+                <p className="text-xs text-slate-400">Buat akun marketing baru</p>
+              </div>
+              <button onClick={() => setShowAddUser(false)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {userError && <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-xs font-medium">{userError}</div>}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama Lengkap *</label>
+                <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                  placeholder="Nama lengkap" value={userFormData.name} onChange={(e) => setUserFormData({...userFormData, name: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Username *</label>
+                <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm font-mono"
+                  placeholder="username" value={userFormData.username} onChange={(e) => setUserFormData({...userFormData, username: e.target.value.toLowerCase().replace(/\s/g, '')})} />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Password *</label>
+                <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm font-mono"
+                  placeholder="Min. 6 karakter" value={userFormData.password} onChange={(e) => setUserFormData({...userFormData, password: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Role *</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                    value={userFormData.role} onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}>
+                    <option value="MARKETING">Marketing</option>
+                    <option value="SUPERVISOR">Supervisor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Supervisor</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                    value={userFormData.supervisorId} onChange={(e) => setUserFormData({...userFormData, supervisorId: e.target.value})}>
+                    <option value="">— Tidak ada —</option>
+                    {supervisors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setShowAddUser(false)} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
+              <button onClick={handleCreateUser} disabled={userSaving}
+                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 flex items-center gap-2 text-sm active:scale-[0.98]">
+                {userSaving ? <><i className="fa-solid fa-spinner fa-spin"></i>Saving...</> : <><i className="fa-solid fa-user-plus"></i>Tambah User</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ EDIT USER MODAL ═══ */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/40 glass z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-slide-up">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Edit User</h2>
+                <p className="text-xs text-slate-400">Update data {editingUser.name}</p>
+              </div>
+              <button onClick={() => setEditingUser(null)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {userError && <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-xs font-medium">{userError}</div>}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nama Lengkap *</label>
+                <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                  value={userFormData.name} onChange={(e) => setUserFormData({...userFormData, name: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Role</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                    value={userFormData.role} onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}>
+                    <option value="MARKETING">Marketing</option>
+                    <option value="SUPERVISOR">Supervisor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Supervisor</label>
+                  <select className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm"
+                    value={userFormData.supervisorId} onChange={(e) => setUserFormData({...userFormData, supervisorId: e.target.value})}>
+                    <option value="">— Tidak ada —</option>
+                    {supervisors.filter(s => s.id !== editingUser.id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setEditingUser(null)} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
+              <button onClick={handleEditUser} disabled={userSaving}
+                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 flex items-center gap-2 text-sm active:scale-[0.98]">
+                {userSaving ? <><i className="fa-solid fa-spinner fa-spin"></i>Saving...</> : <><i className="fa-solid fa-check"></i>Update</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ RESET PASSWORD MODAL ═══ */}
+      {resetPasswordUser && (
+        <div className="fixed inset-0 bg-black/40 glass z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-sm overflow-hidden animate-slide-up">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Reset Password</h2>
+                <p className="text-xs text-slate-400">{resetPasswordUser.name}</p>
+              </div>
+              <button onClick={() => setResetPasswordUser(null)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center">
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {userError && <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-xs font-medium">{userError}</div>}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Password Baru *</label>
+                <input type="text" className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm font-mono"
+                  placeholder="Min. 6 karakter" value={resetPassword} onChange={(e) => setResetPassword(e.target.value)} />
+              </div>
+            </div>
+            <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+              <button onClick={() => setResetPasswordUser(null)} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
+              <button onClick={handleResetPassword} disabled={userSaving}
+                className="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 disabled:opacity-50 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 flex items-center gap-2 text-sm active:scale-[0.98]">
+                {userSaving ? <><i className="fa-solid fa-spinner fa-spin"></i>Saving...</> : <><i className="fa-solid fa-key"></i>Reset Password</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ OVERVIEW TAB ═══ */}
+      {activeTab === 'overview' && (<>
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 card-hover">
@@ -306,6 +665,8 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
           </div>
         </div>
       </div>
+
+      </>)}
 
       {/* Review Modal */}
       {reviewingReport && (

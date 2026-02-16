@@ -41,9 +41,12 @@ export enum ReportStatus {
 export interface User {
   id: string;
   name: string;
+  username?: string;
   role: UserRole;
   avatar?: string;
   supervisorId?: string;
+  isActive?: boolean;
+  clientCount?: number;
 }
 
 export interface Client {

@@ -32,6 +32,13 @@ try {
         exit();
     }
 
+    // Check if user is active
+    if (isset($user['is_active']) && !(int)$user['is_active']) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Akun Anda sudah dinonaktifkan. Hubungi Manager.']);
+        exit();
+    }
+
     // Set session
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['role'] = $user['role'];
