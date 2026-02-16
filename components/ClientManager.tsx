@@ -92,7 +92,7 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
   const [lightboxUrl, setLightboxUrl] = useState<string>('');
 
   const isManager = user.role === UserRole.MANAGER;
-  const marketingUsers = useMemo(() => users.filter(u => u.role === UserRole.MARKETING), [users]);
+  const marketingUsers = useMemo(() => users.filter(u => u.role === UserRole.MARKETING || u.role === UserRole.SUPERVISOR), [users]);
 
   // Scoped clients
   const myClients = useMemo(() =>
