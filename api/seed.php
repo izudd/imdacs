@@ -76,6 +76,7 @@ try {
             dpp DECIMAL(15,2) DEFAULT 0,
             ppn_type ENUM('INCLUDE','EXCLUDE') DEFAULT 'EXCLUDE',
             dp_paid DECIMAL(15,2) DEFAULT 0,
+            notes TEXT DEFAULT '',
             last_update DATE DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (marketing_id) REFERENCES users(id)
