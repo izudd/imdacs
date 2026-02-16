@@ -93,6 +93,15 @@ try {
         echo "<p>ℹ️ Column 'dp_proof' already exists - skipped</p>";
     }
 
+    // Migration 7: Add notes column to clients
+    $stmt = $pdo->query("SHOW COLUMNS FROM clients LIKE 'notes'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE clients ADD COLUMN notes TEXT DEFAULT '' AFTER dp_proof");
+        echo "<p>✅ Column 'notes' added to clients table</p>";
+    } else {
+        echo "<p>ℹ️ Column 'notes' already exists - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {

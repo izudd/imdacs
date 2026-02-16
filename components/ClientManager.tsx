@@ -31,6 +31,7 @@ const emptyForm = {
   ppnType: 'EXCLUDE' as 'INCLUDE' | 'EXCLUDE',
   dpPaid: 0,
   dpProof: '' as string,
+  notes: '',
 };
 
 function formatCurrency(value: number): string {
@@ -214,6 +215,7 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
       ppnType: client.ppnType || 'EXCLUDE',
       dpPaid: client.dpPaid || 0,
       dpProof: client.dpProof || '',
+      notes: client.notes || '',
     });
     setEditDpProofFile(null);
     setEditDpProofPreview('');
@@ -598,6 +600,11 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                           {client.address && client.address !== '-' && (
                             <div className="text-[10px] text-slate-400 truncate max-w-[200px]">{client.address}</div>
                           )}
+                          {client.notes && (
+                            <div className="text-[10px] text-amber-600 truncate max-w-[200px] flex items-center gap-1 mt-0.5">
+                              <i className="fa-solid fa-sticky-note text-amber-400 text-[8px]"></i>{client.notes}
+                            </div>
+                          )}
                         </button>
                       </td>
                       {isManager && (
@@ -731,6 +738,12 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                         <span>{formatCurrency(client.estimatedValue)}</span>
                       </div>
                     )}
+                    {client.notes && (
+                      <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded-lg mt-1">
+                        <i className="fa-solid fa-sticky-note text-amber-400 w-4 text-center mt-0.5 flex-shrink-0"></i>
+                        <span className="line-clamp-2">{client.notes}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -833,6 +846,15 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                 <div className="bg-slate-50 p-3 rounded-xl">
                   <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Alamat</p>
                   <p className="text-xs text-slate-700">{detailClient.address}</p>
+                </div>
+              )}
+
+              {detailClient.notes && (
+                <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
+                  <p className="text-[9px] font-bold text-amber-500 uppercase mb-1 flex items-center gap-1">
+                    <i className="fa-solid fa-sticky-note"></i> Note
+                  </p>
+                  <p className="text-xs text-amber-800 whitespace-pre-wrap">{detailClient.notes}</p>
                 </div>
               )}
 
@@ -1097,6 +1119,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                 <textarea className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm h-20 resize-none" placeholder="Alamat lengkap"
                   value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
               </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  <i className="fa-solid fa-sticky-note text-amber-400 mr-1"></i>Note
+                </label>
+                <textarea className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-300 outline-none text-sm h-20 resize-none" placeholder="Catatan tambahan tentang client..."
+                  value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
+              </div>
             </div>
             <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0">
               <button onClick={() => { setIsAdding(false); setFormData(emptyForm); setDpProofFile(null); setDpProofPreview(''); }} className="px-5 py-2.5 text-slate-600 font-medium rounded-xl hover:bg-slate-100 text-sm">Batal</button>
@@ -1253,6 +1282,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                 <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Alamat</label>
                 <textarea className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 outline-none text-sm h-20 resize-none" placeholder="Alamat lengkap"
                   value={editFormData.address} onChange={(e) => setEditFormData({...editFormData, address: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  <i className="fa-solid fa-sticky-note text-amber-400 mr-1"></i>Note
+                </label>
+                <textarea className="w-full border border-slate-200 p-3 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-300 outline-none text-sm h-20 resize-none" placeholder="Catatan tambahan tentang client..."
+                  value={editFormData.notes} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
               </div>
             </div>
             <div className="p-5 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 sticky bottom-0">

@@ -64,6 +64,7 @@ export interface Client {
   ppnType: 'INCLUDE' | 'EXCLUDE';
   dpPaid: number;
   dpProof?: string;
+  notes: string;
   lastUpdate: string;
   createdAt: string;
 }

@@ -26,6 +26,7 @@ function mapClient($c) {
         'ppnType' => $c['ppn_type'] ?? 'EXCLUDE',
         'dpPaid' => (float)($c['dp_paid'] ?? 0),
         'dpProof' => $c['dp_proof'] ?? null,
+        'notes' => $c['notes'] ?? '',
         'lastUpdate' => $c['last_update'],
         'createdAt' => $c['created_at']
     ];
@@ -106,8 +107,8 @@ elseif ($method === 'POST') {
         $now = date('Y-m-d');
 
         $stmt = $db->prepare("
-            INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, year_work, year_book, service_type, dpp, ppn_type, dp_paid, dp_proof, last_update, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, year_work, year_book, service_type, dpp, ppn_type, dp_paid, dp_proof, notes, last_update, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         ");
         $stmt->execute([
             $id,
@@ -127,6 +128,7 @@ elseif ($method === 'POST') {
             $data['ppnType'] ?? 'EXCLUDE',
             $data['dpPaid'] ?? 0,
             $data['dpProof'] ?? null,
+            $data['notes'] ?? '',
             $now
         ]);
 
@@ -178,8 +180,8 @@ elseif ($method === 'PATCH') {
             $now = date('Y-m-d');
 
             $stmt = $db->prepare("
-                INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, year_work, year_book, service_type, dpp, ppn_type, dp_paid, dp_proof, last_update, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                INSERT INTO clients (id, name, industry, pic_name, phone, email, address, marketing_id, status, estimated_value, year_work, year_book, service_type, dpp, ppn_type, dp_paid, dp_proof, notes, last_update, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ");
             $stmt->execute([
                 $id,
@@ -199,6 +201,7 @@ elseif ($method === 'PATCH') {
                 trim($row['ppnType'] ?? 'EXCLUDE') ?: 'EXCLUDE',
                 floatval($row['dpPaid'] ?? 0),
                 $row['dpProof'] ?? null,
+                trim($row['notes'] ?? ''),
                 $now
             ]);
 
@@ -255,7 +258,8 @@ elseif ($method === 'PUT') {
             'dpp' => 'dpp',
             'ppnType' => 'ppn_type',
             'dpPaid' => 'dp_paid',
-            'dpProof' => 'dp_proof'
+            'dpProof' => 'dp_proof',
+            'notes' => 'notes'
         ];
 
         foreach ($mapping as $jsonKey => $dbKey) {
