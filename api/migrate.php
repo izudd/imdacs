@@ -102,6 +102,15 @@ try {
         echo "<p>ℹ️ Column 'notes' already exists - skipped</p>";
     }
 
+    // Migration 8: Add is_active column to users
+    $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'is_active'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN is_active TINYINT(1) DEFAULT 1 AFTER avatar");
+        echo "<p>✅ Column 'is_active' added to users table</p>";
+    } else {
+        echo "<p>ℹ️ Column 'is_active' already exists - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {

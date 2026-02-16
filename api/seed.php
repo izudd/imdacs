@@ -52,6 +52,7 @@ try {
             role ENUM('MARKETING','MANAGER','SUPERVISOR') NOT NULL,
             supervisor_id VARCHAR(10) DEFAULT NULL,
             avatar VARCHAR(255) DEFAULT NULL,
+            is_active TINYINT(1) DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ");
