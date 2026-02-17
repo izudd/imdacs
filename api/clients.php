@@ -27,6 +27,7 @@ function mapClient($c) {
         'dpPaid' => (float)($c['dp_paid'] ?? 0),
         'dpProof' => $c['dp_proof'] ?? null,
         'notes' => $c['notes'] ?? '',
+        'auditorAssignee' => $c['auditor_assignee'] ?? null,
         'lastUpdate' => $c['last_update'],
         'createdAt' => $c['created_at']
     ];
@@ -44,6 +45,10 @@ if ($method === 'GET') {
                 $sql = "SELECT * FROM clients WHERE marketing_id = ? ORDER BY created_at DESC";
                 $params = [$_GET['marketing_id']];
             }
+        } elseif ($auth['role'] === 'AUDITOR') {
+            // Auditor sees clients with status DEAL or DP paid
+            $sql = "SELECT * FROM clients WHERE (status = 'DEAL' OR dp_paid > 0) ORDER BY created_at DESC";
+            $params = [];
         } elseif ($auth['role'] === 'SUPERVISOR') {
             if (!empty($_GET['scope']) && $_GET['scope'] === 'team') {
                 // Team scope: self + team members
@@ -259,7 +264,8 @@ elseif ($method === 'PUT') {
             'ppnType' => 'ppn_type',
             'dpPaid' => 'dp_paid',
             'dpProof' => 'dp_proof',
-            'notes' => 'notes'
+            'notes' => 'notes',
+            'auditorAssignee' => 'auditor_assignee'
         ];
 
         foreach ($mapping as $jsonKey => $dbKey) {

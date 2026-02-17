@@ -2,7 +2,8 @@
 export enum UserRole {
   MARKETING = 'MARKETING',
   MANAGER = 'MANAGER',
-  SUPERVISOR = 'SUPERVISOR'
+  SUPERVISOR = 'SUPERVISOR',
+  AUDITOR = 'AUDITOR'
 }
 
 export enum ClientStatus {
@@ -68,6 +69,7 @@ export interface Client {
   dpPaid: number;
   dpProof?: string;
   notes: string;
+  auditorAssignee?: string | null;
   lastUpdate: string;
   createdAt: string;
 }
@@ -109,4 +111,14 @@ export interface EODReport {
   planTomorrow: string;
   status: ReportStatus;
   submittedAt?: string;
+}
+
+export interface AuditChecklistItem {
+  id: number;
+  clientId: string;
+  itemKey: string;
+  label: string;
+  isChecked: boolean;
+  checkedAt?: string | null;
+  checkedBy?: string | null;
 }

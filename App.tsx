@@ -12,6 +12,7 @@ import EndDayReport from './components/EndDayReport';
 import ManagerView from './components/ManagerView';
 import TeamView from './components/TeamView';
 import QuickLog from './components/QuickLog';
+import AuditorView from './components/AuditorView';
 import logoImg from './public/logo.jpeg';
 
 const APP_VERSION = '1.3.0';
@@ -28,6 +29,13 @@ const App: React.FC = () => {
   const [showEodReminder, setShowEodReminder] = useState(true);
   const [showEodPopup, setShowEodPopup] = useState(false);
   const eodPopupShownRef = useRef(false);
+
+  // Set default tab for AUDITOR role
+  useEffect(() => {
+    if (currentUser?.role === UserRole.AUDITOR) {
+      setActiveTab('auditor');
+    }
+  }, [currentUser]);
 
   // ============ EOD 16:30 Popup Timer ============
   useEffect(() => {
@@ -167,6 +175,7 @@ const App: React.FC = () => {
     { id: 'report', label: 'EOD Report', icon: 'fa-solid fa-file-lines', mobileIcon: 'fa-solid fa-file-lines', roles: [UserRole.MARKETING, UserRole.SUPERVISOR] },
     { id: 'team', label: 'Team', icon: 'fa-solid fa-users-gear', mobileIcon: 'fa-solid fa-users-gear', roles: [UserRole.SUPERVISOR] },
     { id: 'oversight', label: 'Oversight', icon: 'fa-solid fa-chart-line', mobileIcon: 'fa-solid fa-chart-line', roles: [UserRole.MANAGER] },
+    { id: 'auditor', label: 'Audit', icon: 'fa-solid fa-clipboard-check', mobileIcon: 'fa-solid fa-clipboard-check', roles: [UserRole.AUDITOR] },
   ];
 
   const filteredNav = navItems.filter(item => item.roles.includes(currentUser.role as UserRole));
@@ -303,6 +312,7 @@ const App: React.FC = () => {
             {activeTab === 'report' && <EndDayReport user={currentUser} clients={clients} activities={activities} onRefresh={handleRefreshData} onNavigate={setActiveTab} />}
             {activeTab === 'team' && <TeamView user={currentUser} users={users} clients={clients} activities={activities} />}
             {activeTab === 'oversight' && <ManagerView user={currentUser} users={users} clients={clients} activities={activities} />}
+            {activeTab === 'auditor' && <AuditorView user={currentUser} clients={clients} users={users} onEditClient={handleEditClient} onRefresh={handleRefreshData} />}
           </div>
         </main>
 

@@ -49,7 +49,7 @@ try {
             username VARCHAR(50) UNIQUE NOT NULL,
             password_hash VARCHAR(255) NOT NULL,
             name VARCHAR(100) NOT NULL,
-            role ENUM('MARKETING','MANAGER','SUPERVISOR') NOT NULL,
+            role ENUM('MARKETING','MANAGER','SUPERVISOR','AUDITOR') NOT NULL,
             supervisor_id VARCHAR(10) DEFAULT NULL,
             avatar VARCHAR(255) DEFAULT NULL,
             is_active TINYINT(1) DEFAULT 1,
@@ -77,7 +77,9 @@ try {
             dpp DECIMAL(15,2) DEFAULT 0,
             ppn_type ENUM('INCLUDE','EXCLUDE') DEFAULT 'EXCLUDE',
             dp_paid DECIMAL(15,2) DEFAULT 0,
+            dp_proof VARCHAR(500) DEFAULT NULL,
             notes TEXT DEFAULT '',
+            auditor_assignee VARCHAR(50) DEFAULT NULL,
             last_update DATE DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (marketing_id) REFERENCES users(id)
@@ -144,6 +146,21 @@ try {
     ");
     echo "<p>✅ Table 'client_progress_updates' created</p>";
 
+    // Create audit_checklist table
+    $pdo->exec("
+        CREATE TABLE audit_checklist (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            client_id VARCHAR(36) NOT NULL,
+            item_key VARCHAR(50) NOT NULL,
+            is_checked TINYINT(1) DEFAULT 0,
+            checked_at TIMESTAMP NULL DEFAULT NULL,
+            checked_by VARCHAR(10) NULL DEFAULT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+            UNIQUE KEY unique_client_item (client_id, item_key)
+        )
+    ");
+    echo "<p>✅ Table 'audit_checklist' created</p>";
+
     // Seed users
     $passwordHash = password_hash('password123', PASSWORD_BCRYPT);
 
@@ -152,7 +169,8 @@ try {
     $stmt->execute(['m2', 'abraham', $passwordHash, 'Abraham Tito', 'MARKETING', 'https://ui-avatars.com/api/?name=Abraham+Tito&background=8b5cf6&color=fff&size=200']);
     $stmt->execute(['m3', 'zachariyas', $passwordHash, 'Zhachariyas', 'MARKETING', 'https://ui-avatars.com/api/?name=Zhachariyas&background=ec4899&color=fff&size=200']);
     $stmt->execute(['mgr1', 'budiandru', $passwordHash, 'Prof. Dr. Budiandru, S.H., Ak., CA., CPA., CFI.', 'MANAGER', 'https://ui-avatars.com/api/?name=Budiandru&background=1e293b&color=fff&size=200']);
-    echo "<p>✅ 4 users seeded - password: <b>password123</b></p>";
+    $stmt->execute(['aud1', 'auditor', $passwordHash, 'Ketua Tim Audit', 'AUDITOR', 'https://ui-avatars.com/api/?name=Ketua+Tim&background=059669&color=fff&size=200']);
+    echo "<p>✅ 5 users seeded - password: <b>password123</b></p>";
 
     // Assign team members to supervisor
     $pdo->exec("UPDATE users SET supervisor_id = 'm1' WHERE id IN ('m2', 'm3')");
@@ -169,6 +187,7 @@ try {
     echo "<li>abraham / password123 (Marketing)</li>";
     echo "<li>zachariyas / password123 (Marketing)</li>";
     echo "<li>budiandru / password123 (Manager)</li>";
+    echo "<li>auditor / password123 (Auditor - Ketua Tim Audit)</li>";
     echo "</ul>";
 
 } catch (PDOException $e) {

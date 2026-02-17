@@ -1,5 +1,5 @@
 
-import { User, Client, Activity, EODReport, ReportStatus } from '../types';
+import { User, Client, Activity, EODReport, ReportStatus, AuditChecklistItem } from '../types';
 
 const API_BASE = '/api';
 
@@ -205,3 +205,13 @@ export const getTeamReports = (params?: { date?: string }) => {
   const qs = new URLSearchParams(base).toString();
   return request<EODReport[]>(`/reports.php?${qs}`);
 };
+
+// ============ Audit Checklist ============
+export const getAuditChecklist = (clientId: string) =>
+  request<AuditChecklistItem[]>(`/audit_checklist.php?client_id=${clientId}`);
+
+export const updateAuditChecklistItem = (id: number, isChecked: boolean) =>
+  request<{ success: boolean }>('/audit_checklist.php', {
+    method: 'PUT',
+    body: JSON.stringify({ id, isChecked }),
+  });

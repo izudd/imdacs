@@ -28,3 +28,15 @@ export const REPORT_STATUS_BADGE: Record<ReportStatus, string> = {
   [ReportStatus.APPROVED]: 'bg-green-100 text-green-600',
   [ReportStatus.REVISION]: 'bg-red-100 text-red-600',
 };
+
+export const AUDITOR_TEAM_MEMBERS = ['Weni', 'Latifah', 'Nando'] as const;
+
+export const AUDIT_CHECKLIST_ITEMS: Record<string, string> = {
+  DOKUMEN_LENGKAP: 'Kelengkapan Dokumen',
+  VERIFIKASI_DP: 'Verifikasi DP / Pembayaran',
+  INPUT_PEMBUKUAN: 'Input ke Pembukuan',
+  SURAT_PENUGASAN: 'Surat Penugasan Diterbitkan',
+  PROSES_PENGERJAAN: 'Proses Pengerjaan Dimulai',
+  REVIEW_HASIL: 'Review Hasil Pekerjaan',
+  SELESAI: 'Selesai / Delivered',
+};
