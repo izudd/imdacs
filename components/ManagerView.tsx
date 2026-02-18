@@ -394,6 +394,7 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
                     value={userFormData.role} onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}>
                     <option value="MARKETING">Marketing</option>
                     <option value="SUPERVISOR">Supervisor</option>
+                    <option value="AUDITOR">Auditor</option>
                   </select>
                 </div>
                 <div>
@@ -444,6 +445,7 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
                     value={userFormData.role} onChange={(e) => setUserFormData({...userFormData, role: e.target.value})}>
                     <option value="MARKETING">Marketing</option>
                     <option value="SUPERVISOR">Supervisor</option>
+                    <option value="AUDITOR">Auditor</option>
                   </select>
                 </div>
                 <div>
