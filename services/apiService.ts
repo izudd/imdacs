@@ -215,3 +215,19 @@ export const updateAuditChecklistItem = (id: number, isChecked: boolean) =>
     method: 'PUT',
     body: JSON.stringify({ id, isChecked }),
   });
+
+// ============ Notifications ============
+export const sendAssignNotification = (data: {
+  assignee: string;
+  clientName: string;
+  clientIndustry: string;
+  clientPic: string;
+  clientDpp: number;
+  clientDpPaid: number;
+  clientStatus: string;
+  marketingName: string;
+}) =>
+  request<{ success: boolean; notifications: { wa: any; email: any } }>('/notify.php', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });

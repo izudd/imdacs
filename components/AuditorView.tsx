@@ -57,11 +57,48 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
     return u?.name || marketingId;
   }, [users]);
 
+  const [notifStatus, setNotifStatus] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
+
   const handleAssign = async (clientId: string, assignee: string) => {
     setAssignLoading(clientId);
+    setNotifStatus(null);
     try {
+      const client = auditClients.find(c => c.id === clientId);
       await onEditClient({ id: clientId, auditorAssignee: assignee } as Partial<Client> & { id: string });
+
+      // Send WA + Email notification
+      if (client) {
+        try {
+          const result = await api.sendAssignNotification({
+            assignee,
+            clientName: client.name,
+            clientIndustry: client.industry,
+            clientPic: client.picName,
+            clientDpp: client.dpp,
+            clientDpPaid: client.dpPaid,
+            clientStatus: client.status,
+            marketingName: getMarketingName(client.marketingId),
+          });
+          const wa = result.notifications?.wa;
+          const email = result.notifications?.email;
+          const waSent = wa?.sent;
+          const emailSent = email?.sent;
+          if (waSent && emailSent) {
+            setNotifStatus({ type: 'success', message: `✅ ${assignee} dinotifikasi via WhatsApp & Email` });
+          } else if (waSent) {
+            setNotifStatus({ type: 'success', message: `✅ ${assignee} dinotifikasi via WhatsApp` });
+          } else if (emailSent) {
+            setNotifStatus({ type: 'success', message: `✅ ${assignee} dinotifikasi via Email` });
+          } else {
+            setNotifStatus({ type: 'warning', message: `⚠️ Client diassign, tapi notifikasi belum dikonfigurasi` });
+          }
+        } catch {
+          setNotifStatus({ type: 'warning', message: `⚠️ Client diassign ke ${assignee}, tapi gagal kirim notifikasi` });
+        }
+      }
+
       onRefresh();
+      setTimeout(() => setNotifStatus(null), 5000);
     } catch {
       alert('Gagal assign client');
     } finally {
@@ -163,6 +200,20 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
         <h1 className="text-2xl font-black text-slate-800 tracking-tight">Audit Dashboard</h1>
         <p className="text-slate-500 text-sm mt-0.5">Kelola klien DEAL & DP - Assign ke tim audit</p>
       </div>
+
+      {/* Notification Toast */}
+      {notifStatus && (
+        <div className={`rounded-xl p-3 flex items-center gap-3 text-sm font-semibold animate-fade-in ${
+          notifStatus.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+          notifStatus.type === 'warning' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+          'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          <span>{notifStatus.message}</span>
+          <button onClick={() => setNotifStatus(null)} className="ml-auto text-current opacity-50 hover:opacity-100">
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
