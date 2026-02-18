@@ -31,6 +31,31 @@ try {
         $eodReport = $stmt->fetch();
         $eodStatus = $eodReport ? $eodReport['status'] : 'MISSING';
 
+    } elseif ($auth['role'] === 'AUDITOR') {
+        // Auditor: audit-specific stats
+        $stmt = $db->query("SELECT COUNT(*) as total FROM clients WHERE (status = 'DEAL' OR dp_paid > 0)");
+        $totalClients = (int)$stmt->fetch()['total'];
+
+        // Unassigned count (repurpose todayActivities field)
+        $stmt = $db->query("SELECT COUNT(*) as total FROM clients WHERE (status = 'DEAL' OR dp_paid > 0) AND (auditor_assignee IS NULL OR auditor_assignee = '')");
+        $todayActivities = (int)$stmt->fetch()['total'];
+
+        // Completed audits (all checklist items checked for a client)
+        $stmt = $db->query("
+            SELECT COUNT(*) as total FROM (
+                SELECT ac.client_id
+                FROM audit_checklist ac
+                INNER JOIN clients c ON c.id = ac.client_id
+                WHERE c.auditor_assignee IS NOT NULL AND c.auditor_assignee != ''
+                GROUP BY ac.client_id
+                HAVING SUM(ac.is_checked = 0) = 0
+            ) completed
+        ");
+        $dealsThisMonth = (int)$stmt->fetch()['total'];
+
+        $eodStatus = 'N/A';
+        $dealValueThisMonth = 0;
+
     } else {
         // Manager: aggregate stats
         $stmt = $db->query("SELECT COUNT(*) as total FROM clients");

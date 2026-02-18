@@ -111,6 +111,45 @@ try {
         echo "<p>ℹ️ Column 'is_active' already exists - skipped</p>";
     }
 
+    // Migration 9: Add AUDITOR to users role ENUM
+    $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'role'");
+    $roleCol = $stmt->fetch();
+    if ($roleCol && strpos($roleCol['Type'], 'AUDITOR') === false) {
+        $pdo->exec("ALTER TABLE users MODIFY COLUMN role ENUM('MARKETING','MANAGER','SUPERVISOR','AUDITOR') NOT NULL");
+        echo "<p>✅ AUDITOR role added to users ENUM</p>";
+    } else {
+        echo "<p>ℹ️ AUDITOR role already exists in ENUM - skipped</p>";
+    }
+
+    // Migration 10: Add auditor_assignee column to clients
+    $stmt = $pdo->query("SHOW COLUMNS FROM clients LIKE 'auditor_assignee'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE clients ADD COLUMN auditor_assignee VARCHAR(50) DEFAULT NULL AFTER notes");
+        echo "<p>✅ Column 'auditor_assignee' added to clients table</p>";
+    } else {
+        echo "<p>ℹ️ Column 'auditor_assignee' already exists - skipped</p>";
+    }
+
+    // Migration 11: Create audit_checklist table
+    $stmt = $pdo->query("SHOW TABLES LIKE 'audit_checklist'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("
+            CREATE TABLE audit_checklist (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                client_id VARCHAR(36) NOT NULL,
+                item_key VARCHAR(50) NOT NULL,
+                is_checked TINYINT(1) DEFAULT 0,
+                checked_at TIMESTAMP NULL DEFAULT NULL,
+                checked_by VARCHAR(10) NULL DEFAULT NULL,
+                FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+                UNIQUE KEY unique_client_item (client_id, item_key)
+            )
+        ");
+        echo "<p>✅ Table 'audit_checklist' created</p>";
+    } else {
+        echo "<p>ℹ️ Table 'audit_checklist' already exists - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {

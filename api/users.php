@@ -27,7 +27,7 @@ try {
                    (SELECT COUNT(*) FROM clients c WHERE c.marketing_id = u.id) as client_count
             FROM users u
             ORDER BY
-                CASE u.role WHEN 'MANAGER' THEN 1 WHEN 'SUPERVISOR' THEN 2 WHEN 'MARKETING' THEN 3 END,
+                CASE u.role WHEN 'MANAGER' THEN 1 WHEN 'SUPERVISOR' THEN 2 WHEN 'AUDITOR' THEN 3 WHEN 'MARKETING' THEN 4 END,
                 u.name
         ");
         $users = $stmt->fetchAll();
@@ -62,9 +62,9 @@ try {
             echo json_encode(['error' => 'Password minimal 6 karakter']);
             exit();
         }
-        if (!in_array($role, ['MARKETING', 'SUPERVISOR'])) {
+        if (!in_array($role, ['MARKETING', 'SUPERVISOR', 'AUDITOR'])) {
             http_response_code(400);
-            echo json_encode(['error' => 'Role harus MARKETING atau SUPERVISOR']);
+            echo json_encode(['error' => 'Role harus MARKETING, SUPERVISOR, atau AUDITOR']);
             exit();
         }
 
@@ -141,7 +141,7 @@ try {
             $fields[] = 'avatar = ?';
             $params[] = "https://ui-avatars.com/api/?name={$initials}&background=" . substr(md5(trim($data['name'])), 0, 6) . "&color=fff&size=200";
         }
-        if (isset($data['role']) && in_array($data['role'], ['MARKETING', 'SUPERVISOR'])) {
+        if (isset($data['role']) && in_array($data['role'], ['MARKETING', 'SUPERVISOR', 'AUDITOR'])) {
             $fields[] = 'role = ?';
             $params[] = $data['role'];
         }
