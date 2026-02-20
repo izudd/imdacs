@@ -12,8 +12,6 @@ interface AuditorViewProps {
   onRefresh: () => void;
 }
 
-const formatRupiah = (val: number) => val.toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
 const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditClient, onRefresh }) => {
   const [activeView, setActiveView] = useState<'team' | 'unassigned'>('team');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -74,10 +72,9 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
             clientName: client.name,
             clientIndustry: client.industry,
             clientPic: client.picName,
-            clientDpp: client.dpp,
-            clientDpPaid: client.dpPaid,
             clientStatus: client.status,
             marketingName: getMarketingName(client.marketingId),
+            notes: client.notes || '',
           });
           const wa = result.notifications?.wa;
           const email = result.notifications?.email;
@@ -339,11 +336,10 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
                               {client.status}
                             </span>
                           </div>
-                          {/* Financial info */}
-                          <div className="flex items-center gap-3 text-[10px] text-slate-500 mb-2">
-                            {client.dpp > 0 && <span>DPP: Rp {formatRupiah(client.dpp)}</span>}
-                            {client.dpPaid > 0 && <span className="text-emerald-600 font-semibold">DP: Rp {formatRupiah(client.dpPaid)}</span>}
-                          </div>
+                          {/* Notes */}
+                          {client.notes && (
+                            <p className="text-[10px] text-slate-500 mb-2 truncate"><i className="fa-solid fa-sticky-note mr-1"></i>{client.notes}</p>
+                          )}
                           {/* Checklist Progress */}
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -405,12 +401,10 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
                     </span>
                   </div>
 
-                  {/* Financial */}
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mb-3">
-                    {client.dpp > 0 && <span>DPP: <b className="text-slate-700">Rp {formatRupiah(client.dpp)}</b></span>}
-                    {client.dpPaid > 0 && <span>DP: <b className="text-emerald-600">Rp {formatRupiah(client.dpPaid)}</b></span>}
-                    {client.estimatedValue > 0 && <span>Est: <b className="text-slate-700">Rp {formatRupiah(client.estimatedValue)}</b></span>}
-                  </div>
+                  {/* Notes */}
+                  {client.notes && (
+                    <p className="text-[11px] text-slate-500 mb-3 line-clamp-2"><i className="fa-solid fa-sticky-note mr-1 text-slate-400"></i>{client.notes}</p>
+                  )}
 
                   {/* Assign Buttons */}
                   <div className="flex items-center gap-2">
@@ -471,23 +465,13 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
                 </div>
               </div>
 
-              {/* Financial Info */}
+              {/* Additional Info */}
               <div className="space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Informasi Keuangan</h4>
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Info Tambahan</h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <InfoItem label="DPP" value={selectedClient.dpp > 0 ? `Rp ${formatRupiah(selectedClient.dpp)}` : '-'} />
-                  <InfoItem label="PPN" value={selectedClient.ppnType} />
-                  <InfoItem label="DP Dibayar" value={selectedClient.dpPaid > 0 ? `Rp ${formatRupiah(selectedClient.dpPaid)}` : '-'} highlight={selectedClient.dpPaid > 0} />
-                  <InfoItem label="Estimasi" value={selectedClient.estimatedValue > 0 ? `Rp ${formatRupiah(selectedClient.estimatedValue)}` : '-'} />
                   {selectedClient.yearWork && <InfoItem label="Tahun Kerja" value={String(selectedClient.yearWork)} />}
                   {selectedClient.yearBook && <InfoItem label="Tahun Buku" value={String(selectedClient.yearBook)} />}
                 </div>
-                {selectedClient.dpProof && (
-                  <div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Bukti DP</p>
-                    <img src={selectedClient.dpProof} alt="Bukti DP" className="rounded-xl border border-slate-200 max-h-48 object-contain" />
-                  </div>
-                )}
               </div>
 
               {selectedClient.notes && (

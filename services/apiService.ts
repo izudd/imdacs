@@ -222,10 +222,9 @@ export const sendAssignNotification = (data: {
   clientName: string;
   clientIndustry: string;
   clientPic: string;
-  clientDpp: number;
-  clientDpPaid: number;
   clientStatus: string;
   marketingName: string;
+  notes: string;
 }) =>
   request<{ success: boolean; notifications: { wa: any; email: any } }>('/notify.php', {
     method: 'POST',
