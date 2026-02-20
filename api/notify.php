@@ -27,10 +27,9 @@ $assignee = $data['assignee'] ?? '';
 $clientName = $data['clientName'] ?? '';
 $clientIndustry = $data['clientIndustry'] ?? '';
 $clientPic = $data['clientPic'] ?? '';
-$clientDpp = $data['clientDpp'] ?? 0;
-$clientDpPaid = $data['clientDpPaid'] ?? 0;
 $clientStatus = $data['clientStatus'] ?? '';
 $marketingName = $data['marketingName'] ?? '';
+$clientNotes = $data['notes'] ?? '';
 
 if (empty($assignee) || empty($clientName)) {
     http_response_code(400);
@@ -41,8 +40,7 @@ if (empty($assignee) || empty($clientName)) {
 $results = ['wa' => null, 'email' => null];
 
 // ============ FORMAT MESSAGE ============
-$dppFormatted = 'Rp ' . number_format($clientDpp, 0, ',', '.');
-$dpFormatted = 'Rp ' . number_format($clientDpPaid, 0, ',', '.');
+$notesLine = !empty($clientNotes) ? "📝 Catatan: {$clientNotes}\n" : "";
 
 $waMessage = "📋 *IMDACS - Penugasan Klien Baru*\n\n"
     . "Halo *{$assignee}*,\n\n"
@@ -51,9 +49,8 @@ $waMessage = "📋 *IMDACS - Penugasan Klien Baru*\n\n"
     . "📂 Industri: {$clientIndustry}\n"
     . "👤 PIC: {$clientPic}\n"
     . "📊 Status: {$clientStatus}\n"
-    . "💰 DPP: {$dppFormatted}\n"
-    . "💵 DP Dibayar: {$dpFormatted}\n"
-    . "📌 Marketing: {$marketingName}\n\n"
+    . "📌 Marketing: {$marketingName}\n"
+    . $notesLine . "\n"
     . "Silakan cek dashboard IMDACS untuk detail lengkap dan checklist audit.\n\n"
     . "Terima kasih! 🙏";
 
@@ -77,9 +74,8 @@ $emailBody = "
                 <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px; width: 120px;'>Industri</td><td style='padding: 6px 0; color: #1e293b; font-size: 13px; font-weight: 600;'>{$clientIndustry}</td></tr>
                 <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px;'>PIC</td><td style='padding: 6px 0; color: #1e293b; font-size: 13px; font-weight: 600;'>{$clientPic}</td></tr>
                 <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px;'>Status</td><td style='padding: 6px 0; color: #1e293b; font-size: 13px; font-weight: 600;'>{$clientStatus}</td></tr>
-                <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px;'>DPP</td><td style='padding: 6px 0; color: #1e293b; font-size: 13px; font-weight: 600;'>{$dppFormatted}</td></tr>
-                <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px;'>DP Dibayar</td><td style='padding: 6px 0; color: #059669; font-size: 13px; font-weight: 600;'>{$dpFormatted}</td></tr>
-                <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px;'>Marketing</td><td style='padding: 6px 0; color: #1e293b; font-size: 13px; font-weight: 600;'>{$marketingName}</td></tr>
+                <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px;'>Marketing</td><td style='padding: 6px 0; color: #1e293b; font-size: 13px; font-weight: 600;'>{$marketingName}</td></tr>" . (!empty($clientNotes) ? "
+                <tr><td style='padding: 6px 0; color: #64748b; font-size: 13px;'>Catatan</td><td style='padding: 6px 0; color: #1e293b; font-size: 13px; font-weight: 600;'>{$clientNotes}</td></tr>" : "") . "
             </table>
         </div>
         <p style='color: #64748b; font-size: 13px;'>
