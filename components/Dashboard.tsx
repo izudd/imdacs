@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
 import { User, Client, Activity, EODReport, ClientStatus, ActivityType, UserRole } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -106,6 +106,32 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
   const dealValue = myClients
     .filter(c => c.status === ClientStatus.DEAL)
     .reduce((sum, c) => sum + (c.estimatedValue || 0), 0);
+
+  // === Monthly revenue breakdown (Manager) ===
+  const monthlyRevenue = useMemo(() => {
+    const months: Record<string, { pipeline: number; deal: number; clients: typeof myClients }> = {};
+    myClients.forEach(c => {
+      if (c.status === ClientStatus.LOST) return;
+      const date = new Date(c.lastUpdate || c.createdAt);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!months[key]) months[key] = { pipeline: 0, deal: 0, clients: [] };
+      months[key].clients.push(c);
+      if (c.status === ClientStatus.DEAL) {
+        months[key].deal += c.estimatedValue || 0;
+      } else {
+        months[key].pipeline += c.estimatedValue || 0;
+      }
+    });
+    return Object.entries(months)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, data]) => ({
+        key,
+        label: new Date(key + '-01').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+        ...data,
+        total: data.pipeline + data.deal,
+      }));
+  }, [myClients]);
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
 
   // === Conversion funnel (Marketing) ===
   const funnelStages = [
@@ -609,6 +635,141 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
               <p className="text-2xl font-bold text-slate-800">Rp {formatRupiah(pipelineValue + dealValue)}</p>
               <p className="text-xs text-slate-400 mt-1">Pipeline + Deal combined</p>
             </div>
+          </div>
+
+          {/* Monthly Revenue Breakdown Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="px-4 lg:px-6 py-4 border-b border-slate-100">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                <i className="fa-solid fa-calendar-days text-indigo-500"></i>
+                Rincian Pendapatan Bulanan
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Breakdown per bulan berdasarkan tanggal update terakhir</p>
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden md:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="text-left px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bulan</th>
+                    <th className="text-right px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pipeline</th>
+                    <th className="text-right px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Closed Deal</th>
+                    <th className="text-right px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</th>
+                    <th className="w-10 px-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {monthlyRevenue.map((m, idx) => {
+                    const isCurrentMonth = m.key === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                    const isExpanded = expandedMonth === m.key;
+                    return (
+                      <React.Fragment key={m.key}>
+                        <tr
+                          onClick={() => setExpandedMonth(isExpanded ? null : m.key)}
+                          className={`cursor-pointer transition-colors ${isCurrentMonth ? 'bg-indigo-50/50' : idx % 2 === 1 ? 'bg-slate-50/50' : ''} hover:bg-slate-50`}
+                        >
+                          <td className="px-6 py-3.5">
+                            <div className="flex items-center gap-2">
+                              {isCurrentMonth && <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>}
+                              <span className="text-sm font-semibold text-slate-700">{m.label}</span>
+                              <span className="text-[10px] text-slate-400">({m.clients.length} klien)</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-3.5 text-right text-sm text-slate-600">Rp {formatRupiah(m.pipeline)}</td>
+                          <td className="px-6 py-3.5 text-right text-sm font-semibold text-emerald-600">Rp {formatRupiah(m.deal)}</td>
+                          <td className="px-6 py-3.5 text-right text-sm font-bold text-slate-800">Rp {formatRupiah(m.total)}</td>
+                          <td className="px-3 py-3.5 text-center">
+                            <i className={`fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={5} className="px-6 py-3 bg-slate-50/80">
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                                {m.clients.map(c => (
+                                  <div key={c.id} className="flex items-center justify-between bg-white rounded-xl px-4 py-2.5 border border-slate-100">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_COLORS[c.status]}`}>{c.status}</span>
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-slate-700 truncate">{c.name}</p>
+                                        <p className="text-[10px] text-slate-400">{c.industry}</p>
+                                      </div>
+                                    </div>
+                                    <span className={`text-xs font-bold flex-shrink-0 ml-2 ${c.status === ClientStatus.DEAL ? 'text-emerald-600' : 'text-slate-600'}`}>
+                                      Rp {formatRupiah(c.estimatedValue || 0)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-slate-50">
+              {monthlyRevenue.map(m => {
+                const isCurrentMonth = m.key === `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+                const isExpanded = expandedMonth === m.key;
+                return (
+                  <div key={m.key}>
+                    <button
+                      onClick={() => setExpandedMonth(isExpanded ? null : m.key)}
+                      className={`w-full px-4 py-3 text-left ${isCurrentMonth ? 'bg-indigo-50/50' : ''}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {isCurrentMonth && <span className="w-2 h-2 bg-indigo-500 rounded-full"></span>}
+                          <span className="text-sm font-bold text-slate-700">{m.label}</span>
+                        </div>
+                        <i className={`fa-solid fa-chevron-down text-[10px] text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}></i>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                          <p className="text-[10px] text-slate-400">Pipeline</p>
+                          <p className="text-xs font-semibold text-slate-600">Rp {formatRupiah(m.pipeline)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400">Deal</p>
+                          <p className="text-xs font-bold text-emerald-600">Rp {formatRupiah(m.deal)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-slate-400">Total</p>
+                          <p className="text-xs font-bold text-slate-800">Rp {formatRupiah(m.total)}</p>
+                        </div>
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="px-4 pb-3 space-y-1.5">
+                        {m.clients.map(c => (
+                          <div key={c.id} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-slate-100">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-slate-700 truncate">{c.name}</p>
+                              <span className={`text-[10px] font-bold ${STATUS_COLORS[c.status]?.split(' ')[1] || 'text-slate-500'}`}>{c.status}</span>
+                            </div>
+                            <span className={`text-xs font-bold flex-shrink-0 ml-2 ${c.status === ClientStatus.DEAL ? 'text-emerald-600' : 'text-slate-600'}`}>
+                              Rp {formatRupiah(c.estimatedValue || 0)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {monthlyRevenue.length === 0 && (
+              <div className="p-8 text-center">
+                <p className="text-slate-400 text-sm">Belum ada data pendapatan</p>
+              </div>
+            )}
           </div>
 
           {/* Daily Activity Trend Line Chart (per marketing) */}
