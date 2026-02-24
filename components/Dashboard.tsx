@@ -45,6 +45,11 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
   const [projectFilterMarketing, setProjectFilterMarketing] = useState('all');
   const [projectFilterStatus, setProjectFilterStatus] = useState('all');
   const [dpProofLightbox, setDpProofLightbox] = useState('');
+  const [projectPage, setProjectPage] = useState(1);
+  const PROJECT_PAGE_SIZE = 50;
+
+  // Reset project tracking page when filters change
+  useEffect(() => { setProjectPage(1); }, [projectSearch, projectFilterMarketing, projectFilterStatus]);
 
   useEffect(() => {
     api.getDashboardStats().then(setStats).catch(console.error);
@@ -1087,7 +1092,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
                 </div>
 
                 {/* Table */}
-                {filteredProjects.length > 0 ? (
+                {(() => {
+                  const projectTotalPages = Math.ceil(filteredProjects.length / PROJECT_PAGE_SIZE);
+                  const paginatedProjects = filteredProjects.slice((projectPage - 1) * PROJECT_PAGE_SIZE, projectPage * PROJECT_PAGE_SIZE);
+                  const startIdx = (projectPage - 1) * PROJECT_PAGE_SIZE;
+                  return filteredProjects.length > 0 ? (
+                  <>
                   <div className="overflow-x-auto rounded-xl border border-slate-200">
                     <table className="w-full text-xs">
                       <thead>
@@ -1106,12 +1116,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredProjects.map((c, idx) => {
+                        {paginatedProjects.map((c, idx) => {
                           const bersih = (c.dpp || 0) - (c.dpPaid || 0);
                           const marketingName = users.find(u => u.id === c.marketingId)?.name || '-';
                           return (
                             <tr key={c.id} className="hover:bg-indigo-50/40 transition-colors border-b border-slate-100 last:border-0">
-                              <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{idx + 1}</td>
+                              <td className="px-3 py-2.5 text-center text-slate-400 font-medium">{startIdx + idx + 1}</td>
                               <td className="px-3 py-2.5">
                                 <p className="font-semibold text-slate-800">{c.name}</p>
                                 <p className="text-[10px] text-slate-400 mt-0.5">{c.industry}</p>
@@ -1160,13 +1170,30 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
                       </tfoot>
                     </table>
                   </div>
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between mt-3 px-1">
+                    <span className="text-[11px] text-slate-400">
+                      Menampilkan {Math.min(startIdx + 1, filteredProjects.length)}–{Math.min(startIdx + PROJECT_PAGE_SIZE, filteredProjects.length)} dari {filteredProjects.length} project
+                    </span>
+                    {projectTotalPages > 1 && (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setProjectPage(1)} disabled={projectPage === 1} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-angles-left"></i></button>
+                        <button onClick={() => setProjectPage(p => Math.max(1, p - 1))} disabled={projectPage === 1} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-chevron-left"></i></button>
+                        <span className="text-[11px] text-slate-500 px-2 font-medium">{projectPage} / {projectTotalPages}</span>
+                        <button onClick={() => setProjectPage(p => Math.min(projectTotalPages, p + 1))} disabled={projectPage === projectTotalPages} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-chevron-right"></i></button>
+                        <button onClick={() => setProjectPage(projectTotalPages)} disabled={projectPage === projectTotalPages} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-angles-right"></i></button>
+                      </div>
+                    )}
+                  </div>
+                  </>
                 ) : (
                   <div className="text-center py-12 text-slate-300">
                     <i className="fa-solid fa-folder-open text-4xl mb-3"></i>
                     <p className="text-sm font-medium text-slate-400">Tidak ada project yang cocok</p>
                     <p className="text-[10px] text-slate-300 mt-1">Coba ubah filter atau kata kunci pencarian</p>
                   </div>
-                )}
+                );
+                })()}
               </div>
             );
           })()}

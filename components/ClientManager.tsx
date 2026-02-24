@@ -71,6 +71,8 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
   const [editFormData, setEditFormData] = useState(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   // Import states
   const [showImport, setShowImport] = useState(false);
@@ -113,6 +115,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
       return matchSearch && matchStatus && matchMarketing;
     });
   }, [myClients, searchTerm, statusFilter, marketingFilter]);
+
+  // Reset page when filters change
+  React.useEffect(() => { setCurrentPage(1); }, [searchTerm, statusFilter, marketingFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredClients.length / PAGE_SIZE);
+  const paginatedClients = filteredClients.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   // Stats
   const stats = useMemo(() => {
@@ -589,7 +598,7 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filteredClients.map(client => {
+                {paginatedClients.map(client => {
                   const days = getStagnantDays(client.lastUpdate);
                   const isStagnant = days > 7 && client.status !== ClientStatus.DEAL && client.status !== ClientStatus.LOST;
                   return (
@@ -672,22 +681,36 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
               </tbody>
             </table>
           </div>
-          {/* Table footer with count */}
+          {/* Table footer with pagination */}
           <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-[11px] text-slate-400">Menampilkan {filteredClients.length} dari {myClients.length} client</span>
-            {isManager && marketingFilter !== 'all' && (
-              <button onClick={() => setMarketingFilter('all')} className="text-[11px] text-indigo-600 font-semibold hover:text-indigo-700">
-                <i className="fa-solid fa-xmark mr-1"></i>Reset filter
-              </button>
-            )}
+            <span className="text-[11px] text-slate-400">
+              Menampilkan {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredClients.length)}–{Math.min(currentPage * PAGE_SIZE, filteredClients.length)} dari {filteredClients.length} client
+            </span>
+            <div className="flex items-center gap-1">
+              {isManager && marketingFilter !== 'all' && (
+                <button onClick={() => setMarketingFilter('all')} className="text-[11px] text-indigo-600 font-semibold hover:text-indigo-700 mr-2">
+                  <i className="fa-solid fa-xmark mr-1"></i>Reset filter
+                </button>
+              )}
+              {totalPages > 1 && (
+                <>
+                  <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-angles-left"></i></button>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-chevron-left"></i></button>
+                  <span className="text-[11px] text-slate-500 px-2 font-medium">{currentPage} / {totalPages}</span>
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-chevron-right"></i></button>
+                  <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-angles-right"></i></button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {/* ═══ CARD VIEW ═══ */}
       {viewMode === 'card' && (
+        <>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
-          {filteredClients.map(client => {
+          {paginatedClients.map(client => {
             const days = getStagnantDays(client.lastUpdate);
             const isStagnant = days > 7 && client.status !== ClientStatus.DEAL && client.status !== ClientStatus.LOST;
             return (
@@ -780,6 +803,22 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
             </div>
           )}
         </div>
+        {/* Card pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-3 px-1">
+            <span className="text-[11px] text-slate-400">
+              Menampilkan {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredClients.length)}–{Math.min(currentPage * PAGE_SIZE, filteredClients.length)} dari {filteredClients.length} client
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-angles-left"></i></button>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-chevron-left"></i></button>
+              <span className="text-[11px] text-slate-500 px-2 font-medium">{currentPage} / {totalPages}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-chevron-right"></i></button>
+              <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="w-7 h-7 rounded-lg text-xs flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-100 text-slate-500 transition-colors"><i className="fa-solid fa-angles-right"></i></button>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       {/* ═══ DETAIL MODAL ═══ */}
