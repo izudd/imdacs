@@ -93,7 +93,7 @@ $emailBody = "
 $fonntToken = $env['FONNTE_TOKEN'] ?? '';
 $waNumbers = [
     'Weni' => $env['WA_WENI'] ?? '',
-    'Latifah' => $env['WA_LATIFAH'] ?? '',
+    'Lativa' => $env['WA_LATIFAH'] ?? '',
     'Nando' => $env['WA_NANDO'] ?? '',
 ];
 
@@ -139,7 +139,7 @@ $smtpFromName = $env['SMTP_FROM_NAME'] ?? 'IMDACS System';
 
 $emailAddresses = [
     'Weni' => $env['EMAIL_WENI'] ?? '',
-    'Latifah' => $env['EMAIL_LATIFAH'] ?? '',
+    'Lativa' => $env['EMAIL_LATIFAH'] ?? '',
     'Nando' => $env['EMAIL_NANDO'] ?? '',
 ];
 
