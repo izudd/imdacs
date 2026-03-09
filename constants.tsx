@@ -31,12 +31,3 @@ export const REPORT_STATUS_BADGE: Record<ReportStatus, string> = {
 
 export const AUDITOR_TEAM_MEMBERS = ['Weni', 'Lativa', 'Nando'] as const;
 
-export const AUDIT_CHECKLIST_ITEMS: Record<string, string> = {
-  DOKUMEN_LENGKAP: 'Kelengkapan Dokumen',
-  VERIFIKASI_DP: 'Verifikasi DP / Pembayaran',
-  INPUT_PEMBUKUAN: 'Input ke Pembukuan',
-  SURAT_PENUGASAN: 'Surat Penugasan Diterbitkan',
-  PROSES_PENGERJAAN: 'Proses Pengerjaan Dimulai',
-  REVIEW_HASIL: 'Review Hasil Pekerjaan',
-  SELESAI: 'Selesai / Delivered',
-};

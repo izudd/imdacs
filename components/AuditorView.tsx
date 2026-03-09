@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { User, Client, ClientStatus, AuditChecklistItem } from '../types';
+import { User, Client, ClientStatus } from '../types';
 import { STATUS_COLORS, AUDITOR_TEAM_MEMBERS } from '../constants';
 import * as api from '../services/apiService';
 
@@ -15,8 +15,6 @@ interface AuditorViewProps {
 const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditClient, onRefresh }) => {
   const [activeView, setActiveView] = useState<'team' | 'unassigned'>('team');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [checklist, setChecklist] = useState<AuditChecklistItem[]>([]);
-  const [checklistLoading, setChecklistLoading] = useState(false);
   const [assignLoading, setAssignLoading] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,9 +44,6 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
     });
     return groups;
   }, [assignedClients]);
-
-  // Checklist completion tracking (stored per client from loaded checklists)
-  const [checklistCache, setChecklistCache] = useState<Record<string, AuditChecklistItem[]>>({});
 
   const getMarketingName = useCallback((marketingId: string) => {
     const u = users.find(u => u.id === marketingId);
@@ -115,64 +110,9 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
     }
   };
 
-  const openClientDetail = async (client: Client) => {
+  const openClientDetail = (client: Client) => {
     setSelectedClient(client);
-    setChecklistLoading(true);
-    try {
-      const items = await api.getAuditChecklist(client.id);
-      setChecklist(items);
-      setChecklistCache(prev => ({ ...prev, [client.id]: items }));
-    } catch {
-      console.error('Failed to load checklist');
-      setChecklist([]);
-    } finally {
-      setChecklistLoading(false);
-    }
   };
-
-  const toggleChecklistItem = async (item: AuditChecklistItem) => {
-    const newChecked = !item.isChecked;
-    // Optimistic update
-    setChecklist(prev => prev.map(i => i.id === item.id ? { ...i, isChecked: newChecked, checkedAt: newChecked ? new Date().toISOString() : null } : i));
-    try {
-      await api.updateAuditChecklistItem(item.id, newChecked);
-      // Update cache
-      if (selectedClient) {
-        setChecklistCache(prev => ({
-          ...prev,
-          [selectedClient.id]: (prev[selectedClient.id] || []).map(i => i.id === item.id ? { ...i, isChecked: newChecked } : i)
-        }));
-      }
-    } catch {
-      // Revert on failure
-      setChecklist(prev => prev.map(i => i.id === item.id ? { ...i, isChecked: !newChecked } : i));
-    }
-  };
-
-  const getChecklistProgress = (clientId: string): { checked: number; total: number } => {
-    const items = checklistCache[clientId];
-    if (!items || items.length === 0) return { checked: 0, total: 7 };
-    return { checked: items.filter(i => i.isChecked).length, total: items.length };
-  };
-
-  // Pre-load checklists for assigned clients
-  const loadChecklistsForGroup = useCallback(async (groupClients: Client[]) => {
-    for (const c of groupClients) {
-      if (!checklistCache[c.id]) {
-        try {
-          const items = await api.getAuditChecklist(c.id);
-          setChecklistCache(prev => ({ ...prev, [c.id]: items }));
-        } catch { /* skip */ }
-      }
-    }
-  }, [checklistCache]);
-
-  // Load checklists when team view is active
-  React.useEffect(() => {
-    if (activeView === 'team' && assignedClients.length > 0) {
-      loadChecklistsForGroup(assignedClients);
-    }
-  }, [activeView, assignedClients.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredUnassigned = useMemo(() => {
     if (!searchQuery.trim()) return unassignedClients;
@@ -188,7 +128,6 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
   const totalAudit = auditClients.length;
   const totalAssigned = assignedClients.length;
   const totalUnassigned = unassignedClients.length;
-  const totalCompleted = (Object.values(checklistCache) as AuditChecklistItem[][]).filter(items => items.length > 0 && items.every(i => i.isChecked)).length;
 
   return (
     <div className="space-y-6">
@@ -213,7 +152,7 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
@@ -244,17 +183,6 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
             <div>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Belum Assign</p>
               <p className="text-xl font-black text-slate-800">{totalUnassigned}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-              <i className="fa-solid fa-circle-check text-green-600 text-sm"></i>
-            </div>
-            <div>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Selesai</p>
-              <p className="text-xl font-black text-slate-800">{totalCompleted}</p>
             </div>
           </div>
         </div>
@@ -317,11 +245,7 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
                       <p className="text-slate-400 text-xs">Belum ada klien</p>
                     </div>
                   ) : (
-                    memberClients.map(client => {
-                      const progress = getChecklistProgress(client.id);
-                      const progressPct = progress.total > 0 ? Math.round((progress.checked / progress.total) * 100) : 0;
-                      const isComplete = progress.checked === progress.total && progress.total > 0;
-                      return (
+                    memberClients.map(client => (
                         <div
                           key={client.id}
                           onClick={() => openClientDetail(client)}
@@ -338,23 +262,10 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
                           </div>
                           {/* Notes */}
                           {client.notes && (
-                            <p className="text-[10px] text-slate-500 mb-2 truncate"><i className="fa-solid fa-sticky-note mr-1"></i>{client.notes}</p>
+                            <p className="text-[10px] text-slate-500 truncate"><i className="fa-solid fa-sticky-note mr-1"></i>{client.notes}</p>
                           )}
-                          {/* Checklist Progress */}
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${isComplete ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                                style={{ width: `${progressPct}%` }}
-                              />
-                            </div>
-                            <span className={`text-[10px] font-bold ${isComplete ? 'text-emerald-600' : 'text-slate-400'}`}>
-                              {progress.checked}/{progress.total}
-                            </span>
-                          </div>
                         </div>
-                      );
-                    })
+                    ))
                   )}
                 </div>
               </div>
@@ -511,62 +422,6 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
                 </div>
               </div>
 
-              {/* Checklist */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Checklist Audit</h4>
-                  {!checklistLoading && checklist.length > 0 && (
-                    <span className="text-[11px] font-bold text-indigo-600">
-                      {checklist.filter(i => i.isChecked).length}/{checklist.length} selesai
-                    </span>
-                  )}
-                </div>
-
-                {checklistLoading ? (
-                  <div className="space-y-2">
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse shimmer-bg" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {checklist.map((item, idx) => (
-                      <button
-                        key={item.id}
-                        onClick={() => toggleChecklistItem(item)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                          item.isChecked
-                            ? 'bg-emerald-50 border-emerald-200'
-                            : 'bg-white border-slate-100 hover:border-slate-200'
-                        }`}
-                      >
-                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
-                          item.isChecked
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-slate-100 text-slate-300'
-                        }`}>
-                          {item.isChecked ? (
-                            <i className="fa-solid fa-check text-[10px]"></i>
-                          ) : (
-                            <span className="text-[10px] font-bold">{idx + 1}</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-semibold ${item.isChecked ? 'text-emerald-700 line-through' : 'text-slate-700'}`}>
-                            {item.label}
-                          </p>
-                          {item.isChecked && item.checkedAt && (
-                            <p className="text-[10px] text-emerald-500 mt-0.5">
-                              <i className="fa-solid fa-check mr-1"></i>
-                              {new Date(item.checkedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>

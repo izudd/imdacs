@@ -112,13 +112,3 @@ export interface EODReport {
   status: ReportStatus;
   submittedAt?: string;
 }
-
-export interface AuditChecklistItem {
-  id: number;
-  clientId: string;
-  itemKey: string;
-  label: string;
-  isChecked: boolean;
-  checkedAt?: string | null;
-  checkedBy?: string | null;
-}
