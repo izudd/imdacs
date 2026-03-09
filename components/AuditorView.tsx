@@ -15,7 +15,7 @@ interface AuditorViewProps {
 }
 
 const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditClient, onRefresh }) => {
-  const [activeView, setActiveView] = useState<'team' | 'unassigned' | 'progress'>('team');
+  const [activeView, setActiveView] = useState<'team' | 'unassigned' | 'progress' | 'monitra'>('team');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [assignLoading, setAssignLoading] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -323,7 +323,7 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
       )}
 
       {/* Stats Cards — only show on team/unassigned views */}
-      {activeView !== 'progress' && (
+      {activeView !== 'progress' && activeView !== 'monitra' && (
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3">
@@ -392,6 +392,15 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
         >
           <i className="fa-solid fa-chart-line mr-2 text-xs"></i>
           Progress Audit
+        </button>
+        <button
+          onClick={() => setActiveView('monitra')}
+          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            activeView === 'monitra' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <i className="fa-solid fa-desktop mr-2 text-xs"></i>
+          MONITRA
         </button>
       </div>
 
@@ -748,6 +757,18 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
               </div>
             )
           )}
+        </div>
+      )}
+
+      {/* ═══ MONITRA EMBED ═══ */}
+      {activeView === 'monitra' && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 220px)', minHeight: '500px' }}>
+          <iframe
+            src="https://monitra.assetsmanagement.shop"
+            className="w-full h-full border-0"
+            title="MONITRA - Monitoring & Tracking Audit"
+            allow="clipboard-write"
+          />
         </div>
       )}
 
