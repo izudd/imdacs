@@ -66,6 +66,15 @@ function syncToMonitra($client) {
     curl_close($curl);
 }
 
+// ============ GET: Bulk export DEAL clients untuk MONITRA sync ============
+if ($method === 'GET' && isset($_GET['export_deals']) && $_GET['key'] === 'imdacs-monitra-sync-2026') {
+    $stmt = $db->prepare("SELECT * FROM clients WHERE status = 'DEAL' ORDER BY created_at DESC");
+    $stmt->execute();
+    $rows = $stmt->fetchAll();
+    echo json_encode(array_map('mapClient', $rows));
+    exit();
+}
+
 // ============ GET: List clients ============
 if ($method === 'GET') {
     try {
