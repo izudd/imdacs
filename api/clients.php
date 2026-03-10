@@ -2,6 +2,27 @@
 require_once __DIR__ . '/config/cors.php';
 require_once __DIR__ . '/config/database.php';
 
+// ============ Bulk export DEAL clients untuk MONITRA (no user auth, API key) ============
+// HARUS sebelum requireAuth() agar tidak diblokir!
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export_deals']) && $_GET['key'] === 'imdacs-monitra-sync-2026') {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT * FROM clients WHERE status = 'DEAL' ORDER BY created_at DESC");
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $result = array_map(function($c) {
+        return [
+            'name'     => $c['name'],
+            'picName'  => $c['pic_name'] ?? '',
+            'address'  => $c['address'] ?? '',
+            'yearWork' => $c['year_work'] ? (int)$c['year_work'] : null,
+            'status'   => $c['status'],
+        ];
+    }, $rows);
+    header('Content-Type: application/json');
+    echo json_encode($result);
+    exit();
+}
+
 $auth = requireAuth();
 $db = getDB();
 $method = $_SERVER['REQUEST_METHOD'];
@@ -64,15 +85,6 @@ function syncToMonitra($client) {
     ]);
     curl_exec($curl);
     curl_close($curl);
-}
-
-// ============ GET: Bulk export DEAL clients untuk MONITRA sync ============
-if ($method === 'GET' && isset($_GET['export_deals']) && $_GET['key'] === 'imdacs-monitra-sync-2026') {
-    $stmt = $db->prepare("SELECT * FROM clients WHERE status = 'DEAL' ORDER BY created_at DESC");
-    $stmt->execute();
-    $rows = $stmt->fetchAll();
-    echo json_encode(array_map('mapClient', $rows));
-    exit();
 }
 
 // ============ GET: List clients ============
