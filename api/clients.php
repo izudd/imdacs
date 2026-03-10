@@ -33,6 +33,39 @@ function mapClient($c) {
     ];
 }
 
+// Helper: kirim PT ke MONITRA saat status menjadi DEAL
+function syncToMonitra($client) {
+    $url    = 'https://monitra.assetsmanagement.shop/api/internal/sync-pt';
+    $secret = 'imdacs-monitra-sync-2026';
+
+    $yearWork     = $client['year_work'] ?? null;
+    $periodeStart = $yearWork ? "{$yearWork}-01-01" : null;
+    $periodeEnd   = $yearWork ? "{$yearWork}-12-31" : null;
+
+    $payload = json_encode([
+        'nama_pt'       => $client['name'],
+        'alamat'        => $client['address'] ?? '',
+        'PIC'           => $client['pic_name'] ?? '',
+        'periode_start' => $periodeStart,
+        'periode_end'   => $periodeEnd,
+    ]);
+
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payload,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            "X-Sync-Key: {$secret}",
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 5,
+        CURLOPT_SSL_VERIFYPEER => false,
+    ]);
+    curl_exec($curl);
+    curl_close($curl);
+}
+
 // ============ GET: List clients ============
 if ($method === 'GET') {
     try {
@@ -245,6 +278,12 @@ elseif ($method === 'PUT') {
     }
 
     try {
+        // Ambil status lama sebelum diupdate (untuk deteksi transisi ke DEAL)
+        $stmtOld = $db->prepare("SELECT status FROM clients WHERE id = ?");
+        $stmtOld->execute([$data['id']]);
+        $oldRow   = $stmtOld->fetch();
+        $oldStatus = $oldRow['status'] ?? '';
+
         $fields = [];
         $params = [];
 
@@ -293,6 +332,11 @@ elseif ($method === 'PUT') {
         $stmt = $db->prepare("SELECT * FROM clients WHERE id = ?");
         $stmt->execute([$data['id']]);
         $c = $stmt->fetch();
+
+        // Jika status baru berubah menjadi DEAL, sync PT ke MONITRA otomatis
+        if (isset($data['status']) && $data['status'] === 'DEAL' && $oldStatus !== 'DEAL') {
+            syncToMonitra($c);
+        }
 
         echo json_encode(mapClient($c));
 
