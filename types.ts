@@ -112,3 +112,17 @@ export interface EODReport {
   status: ReportStatus;
   submittedAt?: string;
 }
+
+export interface DeleteRequest {
+  id: string;
+  clientId: string;
+  clientName: string;
+  requestedBy: string;
+  requesterName: string;
+  creatorId: string;
+  creatorName: string;
+  reason: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  respondedAt: string | null;
+  createdAt: string;
+}

@@ -139,6 +139,10 @@ const App: React.FC = () => {
     return result;
   };
 
+  const handleClientDeleted = (clientId: string) => {
+    setClients(prev => prev.filter(c => c.id !== clientId));
+  };
+
   const handleRefreshData = () => {
     fetchData();
   };
@@ -307,7 +311,7 @@ const App: React.FC = () => {
           <div className="max-w-7xl mx-auto animate-fade-in">
             {activeTab === 'dashboard' && <Dashboard user={currentUser} clients={clients} activities={activities} users={users} />}
             {activeTab === 'quicklog' && <QuickLog user={currentUser} clients={clients} activities={activities} onAddActivity={handleAddActivity} onQuickAddClient={handleQuickAddClient} onEditClient={handleEditClient} onRefresh={handleRefreshData} />}
-            {activeTab === 'clients' && <ClientManager user={currentUser} clients={clients} users={users} activities={activities} onAddClient={handleAddClient} onEditClient={handleEditClient} onImportClients={handleImportClients} />}
+            {activeTab === 'clients' && <ClientManager user={currentUser} clients={clients} users={users} activities={activities} onAddClient={handleAddClient} onEditClient={handleEditClient} onImportClients={handleImportClients} onClientDeleted={handleClientDeleted} />}
             {activeTab === 'activity' && <DailyLog user={currentUser} clients={clients} activities={activities} onAddActivity={handleAddActivity} onRefresh={handleRefreshData} />}
             {activeTab === 'report' && <EndDayReport user={currentUser} clients={clients} activities={activities} onRefresh={handleRefreshData} onNavigate={setActiveTab} />}
             {activeTab === 'team' && <TeamView user={currentUser} users={users} clients={clients} activities={activities} />}

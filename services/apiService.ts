@@ -1,5 +1,5 @@
 
-import { User, Client, Activity, EODReport, ReportStatus } from '../types';
+import { User, Client, Activity, EODReport, ReportStatus, DeleteRequest } from '../types';
 
 const API_BASE = '/api';
 
@@ -219,4 +219,25 @@ export const sendAssignNotification = (data: {
   request<{ success: boolean; notifications: { wa: any; email: any } }>('/notify.php', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+
+// ============ Delete Requests ============
+export const getDeleteRequests = (params?: { status?: string }) => {
+  const qs = params?.status ? `?status=${params.status}` : '';
+  return request<DeleteRequest[]>(`/delete_requests.php${qs}`);
+};
+
+export const getPendingDeleteCount = () =>
+  request<{ count: number }>('/delete_requests.php?count_pending=1');
+
+export const createDeleteRequest = (clientId: string, reason?: string) =>
+  request<DeleteRequest>('/delete_requests.php', {
+    method: 'POST',
+    body: JSON.stringify({ clientId, reason }),
+  });
+
+export const respondDeleteRequest = (id: string, action: 'approve' | 'reject') =>
+  request<DeleteRequest>('/delete_requests.php', {
+    method: 'PUT',
+    body: JSON.stringify({ id, action }),
   });

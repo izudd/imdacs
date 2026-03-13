@@ -1,9 +1,10 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
-import { Client, ClientStatus, User, UserRole, Activity } from '../types';
+import { Client, ClientStatus, User, UserRole, Activity, DeleteRequest } from '../types';
 import { STATUS_COLORS } from '../constants';
 import { ImportResult, uploadPhoto } from '../services/apiService';
+import * as api from '../services/apiService';
 
 interface ClientManagerProps {
   user: User;
@@ -13,6 +14,7 @@ interface ClientManagerProps {
   onAddClient: (client: Partial<Client>) => Promise<void>;
   onEditClient: (client: Partial<Client> & { id: string }) => Promise<void>;
   onImportClients: (clients: Partial<Client>[]) => Promise<ImportResult>;
+  onClientDeleted?: (clientId: string) => void;
 }
 
 const emptyForm = {
@@ -60,7 +62,7 @@ interface ImportRow {
   dpPaid?: number;
 }
 
-const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, activities, onAddClient, onEditClient, onImportClients }) => {
+const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, activities, onAddClient, onEditClient, onImportClients, onClientDeleted }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [detailClient, setDetailClient] = useState<Client | null>(null);
@@ -94,7 +96,17 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
   // Lightbox state for viewing proof images
   const [lightboxUrl, setLightboxUrl] = useState<string>('');
 
+  // Delete request states
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteRequests, setDeleteRequests] = useState<DeleteRequest[]>([]);
+  const [pendingDeleteCount, setPendingDeleteCount] = useState(0);
+  const [showDeleteRequests, setShowDeleteRequests] = useState(false);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
+
   const isManager = user.role === UserRole.MANAGER;
+  const isMarketing = user.role === UserRole.MARKETING || user.role === UserRole.SUPERVISOR;
   const marketingUsers = useMemo(() => users.filter(u => u.role === UserRole.MARKETING || u.role === UserRole.SUPERVISOR), [users]);
 
   // Scoped clients
@@ -169,6 +181,52 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
 
   const getMarketingAvatar = (marketingId: string): string | undefined => {
     return users.find(m => m.id === marketingId)?.avatar;
+  };
+
+  // Fetch pending delete count for Marketing badge
+  useEffect(() => {
+    if (!isMarketing) return;
+    api.getPendingDeleteCount().then(r => setPendingDeleteCount(r.count)).catch(() => {});
+  }, [isMarketing]);
+
+  const fetchDeleteRequests = async () => {
+    try {
+      const reqs = await api.getDeleteRequests();
+      setDeleteRequests(reqs);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await api.createDeleteRequest(deleteTarget.id, deleteReason);
+      alert('Permintaan hapus telah dikirim ke ' + getMarketingName(deleteTarget.marketingId) + ' untuk konfirmasi.');
+      setDeleteTarget(null);
+      setDeleteReason('');
+    } catch (err: any) {
+      alert('Gagal: ' + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleRespondDelete = async (id: string, action: 'approve' | 'reject') => {
+    setRespondingId(id);
+    try {
+      await api.respondDeleteRequest(id, action);
+      if (action === 'approve') {
+        const req = deleteRequests.find(r => r.id === id);
+        if (req) onClientDeleted?.(req.clientId);
+      }
+      await fetchDeleteRequests();
+      const countRes = await api.getPendingDeleteCount();
+      setPendingDeleteCount(countRes.count);
+    } catch (err: any) {
+      alert('Gagal: ' + err.message);
+    } finally {
+      setRespondingId(null);
+    }
   };
 
   const handleDpProofSelect = (e: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
@@ -576,6 +634,16 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
               <i className="fa-solid fa-grid-2 mr-1"></i> Cards
             </button>
           </div>
+          {isMarketing && pendingDeleteCount > 0 && (
+            <button onClick={() => { setShowDeleteRequests(true); fetchDeleteRequests(); }}
+              className="relative px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl text-xs font-bold transition-all border border-red-200 flex items-center gap-2">
+              <i className="fa-solid fa-trash-can"></i>
+              Permintaan Hapus
+              <span className="bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                {pendingDeleteCount}
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -670,6 +738,13 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                             title="Edit">
                             <i className="fa-solid fa-pen-to-square text-xs"></i>
                           </button>
+                          {isManager && (
+                            <button onClick={() => { setDeleteTarget(client); setDeleteReason(''); }}
+                              className="w-7 h-7 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-all"
+                              title="Hapus">
+                              <i className="fa-solid fa-trash text-xs"></i>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -788,6 +863,11 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
                     <button onClick={() => openEdit(client)} className="w-7 h-7 rounded-lg bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 flex items-center justify-center transition-all">
                       <i className="fa-solid fa-pen-to-square text-xs"></i>
                     </button>
+                    {isManager && (
+                      <button onClick={() => { setDeleteTarget(client); setDeleteReason(''); }} className="w-7 h-7 rounded-lg bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center transition-all">
+                        <i className="fa-solid fa-trash text-xs"></i>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1594,6 +1674,157 @@ const ClientManager: React.FC<ClientManagerProps> = ({ user, clients, users, act
               <i className="fa-solid fa-xmark text-sm"></i>
             </button>
             <img src={lightboxUrl} alt="Bukti DP" className="w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+
+      {/* ═══ DELETE CONFIRMATION MODAL (Manager) ═══ */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden animate-slide-up">
+            <div className="bg-gradient-to-r from-red-600 to-red-700 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-white/15 rounded-xl flex items-center justify-center">
+                  <i className="fa-solid fa-triangle-exclamation text-xl"></i>
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold">Hapus Client</h2>
+                  <p className="text-red-200 text-xs">Konfirmasi penghapusan PT</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-building text-red-400 w-4 text-center"></i>
+                    <span className="text-sm font-bold text-red-900">{deleteTarget.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-briefcase text-red-300 w-4 text-center"></i>
+                    <span className="text-xs text-red-700">{deleteTarget.industry}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-user-tie text-red-300 w-4 text-center"></i>
+                    <span className="text-xs text-red-700">PIC: {deleteTarget.picName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <i className="fa-solid fa-user text-red-300 w-4 text-center"></i>
+                    <span className="text-xs text-red-700">Dibuat oleh: <strong>{getMarketingName(deleteTarget.marketingId)}</strong></span>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                <i className="fa-solid fa-info-circle text-amber-500 mt-0.5"></i>
+                <p className="text-[11px] text-amber-800">
+                  Permintaan hapus akan dikirim ke <strong>{getMarketingName(deleteTarget.marketingId)}</strong> (pembuat PT) untuk konfirmasi. PT akan terhapus setelah disetujui.
+                </p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Alasan Penghapusan</label>
+                <textarea
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="Contoh: PT duplikat, data salah input, dll..."
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-500/20 focus:border-red-300 outline-none resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setDeleteTarget(null)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
+                  Batal
+                </button>
+                <button onClick={handleDeleteRequest} disabled={isDeleting}
+                  className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2">
+                  {isDeleting ? (
+                    <><i className="fa-solid fa-spinner animate-spin text-xs"></i> Mengirim...</>
+                  ) : (
+                    <><i className="fa-solid fa-paper-plane text-xs"></i> Kirim Permintaan</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ DELETE REQUESTS REVIEW MODAL (Marketing) ═══ */}
+      {showDeleteRequests && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg overflow-hidden animate-slide-up max-h-[90vh]">
+            <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center">
+                  <i className="fa-solid fa-trash-can text-red-400"></i>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold">Permintaan Hapus Client</h2>
+                  <p className="text-slate-400 text-xs">Review dan tanggapi permintaan</p>
+                </div>
+              </div>
+              <button onClick={() => setShowDeleteRequests(false)} className="w-8 h-8 rounded-lg bg-white/10 text-white/70 hover:text-white flex items-center justify-center">
+                <i className="fa-solid fa-xmark text-sm"></i>
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+              {deleteRequests.length === 0 ? (
+                <div className="text-center py-10">
+                  <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                    <i className="fa-solid fa-inbox text-slate-300 text-xl"></i>
+                  </div>
+                  <p className="text-slate-400 text-sm font-medium">Tidak ada permintaan hapus</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {deleteRequests.map(req => (
+                    <div key={req.id} className={`border rounded-xl p-4 ${req.status === 'PENDING' ? 'border-amber-200 bg-amber-50/30' : req.status === 'APPROVED' ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-slate-50/30'}`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <h4 className="font-bold text-sm text-slate-800">{req.clientName}</h4>
+                          <p className="text-[11px] text-slate-500">
+                            Diminta oleh <span className="font-semibold text-slate-700">{req.requesterName}</span>
+                            <span className="mx-1.5 text-slate-300">•</span>
+                            {new Date(req.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                          req.status === 'PENDING' ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                          : req.status === 'APPROVED' ? 'bg-green-100 text-green-700 border border-green-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}>{req.status === 'PENDING' ? 'Menunggu' : req.status === 'APPROVED' ? 'Disetujui' : 'Ditolak'}</span>
+                      </div>
+                      {req.reason && (
+                        <div className="bg-white border border-slate-100 rounded-lg px-3 py-2 mb-3">
+                          <p className="text-[11px] text-slate-500 font-medium mb-0.5">Alasan:</p>
+                          <p className="text-xs text-slate-700">{req.reason}</p>
+                        </div>
+                      )}
+                      {req.status === 'PENDING' && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleRespondDelete(req.id, 'reject')}
+                            disabled={respondingId === req.id}
+                            className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 rounded-lg text-xs font-semibold transition-colors">
+                            <i className="fa-solid fa-xmark mr-1"></i> Tolak
+                          </button>
+                          <button
+                            onClick={() => handleRespondDelete(req.id, 'approve')}
+                            disabled={respondingId === req.id}
+                            className="flex-1 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded-lg text-xs font-bold transition-colors">
+                            {respondingId === req.id ? (
+                              <><i className="fa-solid fa-spinner animate-spin mr-1"></i> Proses...</>
+                            ) : (
+                              <><i className="fa-solid fa-check mr-1"></i> Setujui Hapus</>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
