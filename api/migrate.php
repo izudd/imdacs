@@ -150,6 +150,29 @@ try {
         echo "<p>ℹ️ Table 'audit_checklist' already exists - skipped</p>";
     }
 
+    // Migration 12: Create delete_requests table
+    $stmt = $pdo->query("SHOW TABLES LIKE 'delete_requests'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("
+            CREATE TABLE delete_requests (
+                id VARCHAR(36) PRIMARY KEY,
+                client_id VARCHAR(36) NOT NULL,
+                client_name VARCHAR(255) NOT NULL,
+                requested_by VARCHAR(10) NOT NULL,
+                creator_id VARCHAR(10) NOT NULL,
+                reason TEXT DEFAULT '',
+                status ENUM('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
+                responded_at TIMESTAMP NULL DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_creator_status (creator_id, status),
+                INDEX idx_client_id (client_id)
+            )
+        ");
+        echo "<p>✅ Table 'delete_requests' created</p>";
+    } else {
+        echo "<p>ℹ️ Table 'delete_requests' already exists - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {
