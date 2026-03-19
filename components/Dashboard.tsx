@@ -67,7 +67,12 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
     } catch { /* ignore */ }
   };
 
-  const unreadNotes = managerNotes.filter(n => !n.is_read);
+  // Show only: unread + less than 24h old
+  const visibleNotes = managerNotes.filter(n => {
+    if (n.is_read) return false;
+    const ageMs = Date.now() - new Date(n.created_at).getTime();
+    return ageMs < 24 * 60 * 60 * 1000;
+  });
 
   useEffect(() => {
     api.getDashboardStats().then(setStats).catch(console.error);
@@ -270,15 +275,13 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
       </div>
 
       {/* Manager Notes Banner (Marketing only) */}
-      {!isManager && managerNotes.length > 0 && (
+      {!isManager && visibleNotes.length > 0 && (
         <div className="space-y-2">
-          {unreadNotes.length > 0 && (
-            <div className="flex items-center gap-2 mb-1">
-              <i className="fa-solid fa-bell text-indigo-500 animate-ring"></i>
-              <span className="text-xs font-bold text-indigo-600">{unreadNotes.length} catatan baru dari Manager</span>
-            </div>
-          )}
-          {managerNotes.slice(0, 5).map(note => {
+          <div className="flex items-center gap-2 mb-1">
+            <i className="fa-solid fa-bell text-indigo-500 animate-ring"></i>
+            <span className="text-xs font-bold text-indigo-600">{visibleNotes.length} catatan baru dari Manager</span>
+          </div>
+          {visibleNotes.map(note => {
             const toneConfig = note.tone === 'good'
               ? { bg: 'bg-green-50', border: 'border-green-200', borderL: 'border-l-green-500', icon: 'fa-solid fa-circle-check text-green-500', badge: 'bg-green-100 text-green-700' }
               : note.tone === 'warning'
@@ -297,12 +300,10 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
                     </div>
                     <p className="text-sm text-slate-700 leading-relaxed">{note.message}</p>
                   </div>
-                  {!note.is_read && (
-                    <button onClick={() => handleMarkRead(note.id)}
-                      className="flex-shrink-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all">
-                      <i className="fa-solid fa-check mr-1"></i>Dibaca
-                    </button>
-                  )}
+                  <button onClick={() => handleMarkRead(note.id)}
+                    className="flex-shrink-0 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[11px] font-bold text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all">
+                    <i className="fa-solid fa-check mr-1"></i>Dibaca
+                  </button>
                 </div>
               </div>
             );
