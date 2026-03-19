@@ -413,66 +413,63 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
         </div>
       </div>
 
-      {/* Activity Calendar */}
-      <div className="bg-white p-4 lg:p-5 rounded-2xl shadow-sm border border-slate-100">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-            <i className="fa-solid fa-calendar-days text-indigo-500"></i>
+      {/* Activity Calendar - Compact */}
+      <div className="bg-white p-3 lg:p-4 rounded-2xl shadow-sm border border-slate-100 max-w-md">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+            <i className="fa-solid fa-calendar-days text-indigo-500 text-[11px]"></i>
             Kalender Aktivitas
           </h3>
           <div className="flex items-center gap-1">
-            <button onClick={prevMonth} className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors">
-              <i className="fa-solid fa-chevron-left text-[10px]"></i>
+            <button onClick={prevMonth} className="w-6 h-6 rounded-md bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors">
+              <i className="fa-solid fa-chevron-left text-[8px]"></i>
             </button>
-            <button onClick={goToday} className="px-3 py-1 rounded-lg text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+            <button onClick={goToday} className="px-2 py-0.5 rounded-md text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors">
               {calMonthNames[calMonth]} {calYear}
             </button>
-            <button onClick={nextMonth} className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors">
-              <i className="fa-solid fa-chevron-right text-[10px]"></i>
+            <button onClick={nextMonth} className="w-6 h-6 rounded-md bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors">
+              <i className="fa-solid fa-chevron-right text-[8px]"></i>
             </button>
           </div>
         </div>
         {/* Day headers */}
-        <div className="grid grid-cols-7 gap-1 mb-1">
+        <div className="grid grid-cols-7 gap-0.5 mb-0.5">
           {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(d => (
-            <div key={d} className="text-center text-[9px] font-bold text-slate-400 uppercase py-1">{d}</div>
+            <div key={d} className="text-center text-[8px] font-bold text-slate-400 uppercase py-0.5">{d}</div>
           ))}
         </div>
         {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5">
           {calDays.map((d, i) => {
             const isToday = d.date === today;
             return (
-              <div key={i} className={`relative aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-all ${
+              <div key={i} className={`relative h-7 rounded-md flex flex-col items-center justify-center transition-all ${
                 !d.current ? 'text-slate-300' :
-                isToday ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/30' :
+                isToday ? 'bg-indigo-600 text-white font-bold shadow-sm shadow-indigo-500/30' :
                 d.count > 0 ? 'bg-indigo-50 text-indigo-700 font-semibold' :
                 'text-slate-600 hover:bg-slate-50'
               }`}>
-                <span className={isToday ? 'text-xs' : 'text-[11px]'}>{d.day}</span>
+                <span className="text-[10px] leading-none">{d.day}</span>
                 {d.count > 0 && !isToday && (
-                  <div className="absolute bottom-0.5 flex gap-0.5">
+                  <div className="absolute bottom-0.5 flex gap-px">
                     {Array.from({ length: Math.min(d.count, 3) }).map((_, j) => (
-                      <div key={j} className="w-1 h-1 rounded-full bg-indigo-400"></div>
+                      <div key={j} className="w-0.5 h-0.5 rounded-full bg-indigo-400"></div>
                     ))}
                   </div>
-                )}
-                {d.count > 0 && isToday && (
-                  <span className="text-[8px] text-indigo-200 font-normal">{d.count} log</span>
                 )}
               </div>
             );
           })}
         </div>
         {/* Legend */}
-        <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded bg-indigo-600"></div>
-            <span className="text-[10px] text-slate-500">Hari ini</span>
+        <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-sm bg-indigo-600"></div>
+            <span className="text-[9px] text-slate-500">Hari ini</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded bg-indigo-50 border border-indigo-200"></div>
-            <span className="text-[10px] text-slate-500">Ada aktivitas</span>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-sm bg-indigo-50 border border-indigo-200"></div>
+            <span className="text-[9px] text-slate-500">Ada aktivitas</span>
           </div>
         </div>
       </div>
