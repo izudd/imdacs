@@ -42,6 +42,7 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
   const [noteSending, setNoteSending] = useState(false);
   const [sentNotes, setSentNotes] = useState<ManagerNote[]>([]);
   const [noteTarget, setNoteTarget] = useState<string>('');
+  const [noteStatus, setNoteStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const loadUsers = useCallback(() => {
     api.getUsers().then(setManagedUsers).catch(console.error);
@@ -62,18 +63,26 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
     }
   }, [activeTab, selectedMarketing, loadNotes]);
 
+  const showNoteStatus = (type: 'success' | 'error', message: string) => {
+    setNoteStatus({ type, message });
+    setTimeout(() => setNoteStatus(null), 3000);
+  };
+
   const handleSendNote = async () => {
     const target = noteTarget || (selectedMarketing !== 'all' ? selectedMarketing : '');
-    if (!target) { alert('Pilih marketing terlebih dahulu'); return; }
+    if (!target) { showNoteStatus('error', 'Pilih marketing terlebih dahulu'); return; }
     if (!noteMessage.trim()) return;
     setNoteSending(true);
     try {
+      const targetName = marketingUsers.find(m => m.id === target)?.name || '';
       await api.sendManagerNote(target, noteTone, noteMessage.trim());
       setNoteMessage('');
       setNoteTone('good');
+      setNoteTarget('');
+      showNoteStatus('success', `Catatan berhasil dikirim ke ${targetName}`);
       loadNotes(selectedMarketing !== 'all' ? selectedMarketing : undefined);
     } catch (err: unknown) {
-      alert('Gagal kirim: ' + (err instanceof Error ? err.message : 'Unknown'));
+      showNoteStatus('error', 'Gagal kirim: ' + (err instanceof Error ? err.message : 'Unknown'));
     } finally { setNoteSending(false); }
   };
 
@@ -81,8 +90,9 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
     try {
       await api.deleteManagerNote(id);
       setSentNotes(prev => prev.filter(n => n.id !== id));
+      showNoteStatus('success', 'Catatan berhasil dihapus');
     } catch (err: unknown) {
-      alert('Gagal hapus: ' + (err instanceof Error ? err.message : 'Unknown'));
+      showNoteStatus('error', 'Gagal hapus: ' + (err instanceof Error ? err.message : 'Unknown'));
     }
   };
 
@@ -720,6 +730,18 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
           <p className="text-[11px] text-slate-400 mt-0.5">Berikan feedback atau arahan harian untuk tim</p>
         </div>
         <div className="p-5 space-y-4">
+          {/* Status toast */}
+          {noteStatus && (
+            <div className={`px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-2 animate-fade-in ${
+              noteStatus.type === 'success'
+                ? 'bg-green-50 border border-green-200 text-green-700'
+                : 'bg-red-50 border border-red-200 text-red-700'
+            }`}>
+              <i className={`fa-solid ${noteStatus.type === 'success' ? 'fa-circle-check' : 'fa-circle-xmark'}`}></i>
+              {noteStatus.message}
+            </div>
+          )}
+
           {/* Target marketing */}
           {selectedMarketing === 'all' && (
             <div>

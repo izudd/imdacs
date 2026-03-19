@@ -3,13 +3,14 @@ require_once __DIR__ . '/config/cors.php';
 require_once __DIR__ . '/config/database.php';
 
 $user = requireAuth();
+$db = getDB();
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
     case 'GET':
         // Marketing: get notes for me
         if (isset($_GET['for_me'])) {
-            $stmt = $pdo->prepare("
+            $stmt = $db->prepare("
                 SELECT mn.*, u.name AS manager_name
                 FROM manager_notes mn
                 JOIN users u ON u.id = mn.manager_id
@@ -31,7 +32,7 @@ switch ($method) {
 
         $marketingId = $_GET['marketing_id'] ?? null;
         if ($marketingId) {
-            $stmt = $pdo->prepare("
+            $stmt = $db->prepare("
                 SELECT mn.*, u.name AS marketing_name
                 FROM manager_notes mn
                 JOIN users u ON u.id = mn.marketing_id
@@ -41,7 +42,7 @@ switch ($method) {
             ");
             $stmt->execute([$user['id'], $marketingId]);
         } else {
-            $stmt = $pdo->prepare("
+            $stmt = $db->prepare("
                 SELECT mn.*, u.name AS marketing_name
                 FROM manager_notes mn
                 JOIN users u ON u.id = mn.marketing_id
@@ -77,11 +78,11 @@ switch ($method) {
             $tone = 'good';
         }
 
-        $stmt = $pdo->prepare("INSERT INTO manager_notes (manager_id, marketing_id, tone, message) VALUES (?, ?, ?, ?)");
+        $stmt = $db->prepare("INSERT INTO manager_notes (manager_id, marketing_id, tone, message) VALUES (?, ?, ?, ?)");
         $stmt->execute([$user['id'], $marketingId, $tone, $message]);
 
-        $noteId = $pdo->lastInsertId();
-        $stmt = $pdo->prepare("SELECT mn.*, u.name AS marketing_name FROM manager_notes mn JOIN users u ON u.id = mn.marketing_id WHERE mn.id = ?");
+        $noteId = $db->lastInsertId();
+        $stmt = $db->prepare("SELECT mn.*, u.name AS marketing_name FROM manager_notes mn JOIN users u ON u.id = mn.marketing_id WHERE mn.id = ?");
         $stmt->execute([$noteId]);
         echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
         break;
@@ -97,7 +98,7 @@ switch ($method) {
             break;
         }
 
-        $stmt = $pdo->prepare("UPDATE manager_notes SET is_read = 1, read_at = NOW() WHERE id = ? AND marketing_id = ?");
+        $stmt = $db->prepare("UPDATE manager_notes SET is_read = 1, read_at = NOW() WHERE id = ? AND marketing_id = ?");
         $stmt->execute([$noteId, $user['id']]);
 
         echo json_encode(['success' => true]);
@@ -118,7 +119,7 @@ switch ($method) {
             break;
         }
 
-        $stmt = $pdo->prepare("DELETE FROM manager_notes WHERE id = ? AND manager_id = ?");
+        $stmt = $db->prepare("DELETE FROM manager_notes WHERE id = ? AND manager_id = ?");
         $stmt->execute([$noteId, $user['id']]);
 
         echo json_encode(['success' => true]);
