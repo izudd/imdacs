@@ -173,6 +173,28 @@ try {
         echo "<p>ℹ️ Table 'delete_requests' already exists - skipped</p>";
     }
 
+    // Migration 13: Create manager_notes table
+    $stmt = $pdo->query("SHOW TABLES LIKE 'manager_notes'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("
+            CREATE TABLE manager_notes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                manager_id VARCHAR(10) NOT NULL,
+                marketing_id VARCHAR(10) NOT NULL,
+                tone ENUM('good','warning','urgent') NOT NULL DEFAULT 'good',
+                message TEXT NOT NULL,
+                is_read TINYINT(1) DEFAULT 0,
+                read_at DATETIME NULL DEFAULT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_marketing_id (marketing_id),
+                INDEX idx_manager_id (manager_id)
+            )
+        ");
+        echo "<p>✅ Table 'manager_notes' created</p>";
+    } else {
+        echo "<p>ℹ️ Table 'manager_notes' already exists - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {
