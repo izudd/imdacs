@@ -13,9 +13,10 @@ import ManagerView from './components/ManagerView';
 import TeamView from './components/TeamView';
 import QuickLog from './components/QuickLog';
 import AuditorView from './components/AuditorView';
+import Settings from './components/Settings';
 import logoImg from './public/logo.jpeg';
 
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const EOD_REMINDER_HOUR = 16;
 const EOD_REMINDER_MINUTE = 30;
 
@@ -180,6 +181,7 @@ const App: React.FC = () => {
     { id: 'team', label: 'Team', icon: 'fa-solid fa-users-gear', mobileIcon: 'fa-solid fa-users-gear', roles: [UserRole.SUPERVISOR] },
     { id: 'oversight', label: 'Oversight', icon: 'fa-solid fa-chart-line', mobileIcon: 'fa-solid fa-chart-line', roles: [UserRole.MANAGER] },
     { id: 'auditor', label: 'Audit', icon: 'fa-solid fa-clipboard-check', mobileIcon: 'fa-solid fa-clipboard-check', roles: [UserRole.AUDITOR] },
+    { id: 'settings', label: 'Pengaturan', icon: 'fa-solid fa-gear', mobileIcon: 'fa-solid fa-gear', roles: [UserRole.MARKETING, UserRole.SUPERVISOR, UserRole.MANAGER, UserRole.AUDITOR] },
   ];
 
   const filteredNav = navItems.filter(item => item.roles.includes(currentUser.role as UserRole));
@@ -262,7 +264,7 @@ const App: React.FC = () => {
         {/* User card */}
         <div className="p-4 mt-auto">
           <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3">
               <div className="relative">
                 <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500/50 object-cover" alt="Avatar" />
                 <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-slate-900"></div>
@@ -271,14 +273,11 @@ const App: React.FC = () => {
                 <p className="text-sm font-bold truncate">{currentUser.name}</p>
                 <p className="text-[10px] text-indigo-400 font-semibold uppercase tracking-wider">{currentUser.role}</p>
               </div>
+              <button onClick={() => handleNavClick('settings')}
+                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors">
+                <i className="fa-solid fa-gear text-xs"></i>
+              </button>
             </div>
-            <button
-              onClick={logout}
-              className="w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border border-red-500/10"
-            >
-              <i className="fa-solid fa-arrow-right-from-bracket text-[10px]"></i>
-              Logout
-            </button>
           </div>
         </div>
       </aside>
@@ -334,6 +333,7 @@ const App: React.FC = () => {
             {activeTab === 'team' && <TeamView user={currentUser} users={users} clients={clients} activities={activities} />}
             {activeTab === 'oversight' && <ManagerView user={currentUser} users={users} clients={clients} activities={activities} />}
             {activeTab === 'auditor' && <AuditorView user={currentUser} clients={clients} users={users} onEditClient={handleEditClient} onRefresh={handleRefreshData} />}
+            {activeTab === 'settings' && <Settings user={currentUser} onLogout={logout} appVersion={APP_VERSION} />}
           </div>
         </main>
 
