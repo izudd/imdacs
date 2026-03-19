@@ -76,15 +76,11 @@
         overscroll-behavior: none;
       }
 
-      /* Custom scrollbar */
+      /* Hide all scrollbars */
 
-      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar { display: none; }
 
-      ::-webkit-scrollbar-track { background: transparent; }
-
-      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-
-      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      * { -ms-overflow-style: none; scrollbar-width: none; }
 
       /* Mobile touch improvements */
 
@@ -179,12 +175,6 @@
       /* Glass effect dark */
 
       .dark .glass-light { background: rgba(30,41,59,0.9) !important; }
-
-      /* Scrollbar dark */
-
-      .dark ::-webkit-scrollbar-thumb { background: #475569; }
-
-      .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
       /* Sub-backgrounds (50 tints used in status cards etc) */
 
