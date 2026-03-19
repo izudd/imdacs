@@ -193,7 +193,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50/50">
+    <div className="min-h-screen flex bg-slate-50/50 overflow-x-hidden max-w-[100vw]">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -284,7 +284,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top header for mobile */}
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 glass-light border-b border-slate-100 dark:border-slate-700 px-4 py-3 lg:hidden">
           <div className="flex items-center justify-between">
