@@ -306,16 +306,17 @@ const App: React.FC = () => {
         </header>
 
         {/* Ticker bar */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 overflow-hidden relative">
-          <div className="absolute inset-y-0 left-0 w-12 bg-gradient-to-r from-slate-900 to-transparent z-10"></div>
-          <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-slate-900 to-transparent z-10"></div>
+        {/* Ticker bar */}
+        <div className="bg-white border-b border-slate-100 overflow-hidden relative">
+          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white to-transparent z-10"></div>
+          <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent z-10"></div>
           <div className="flex animate-marquee whitespace-nowrap py-2">
             {[0, 1].map(i => (
-              <span key={i} className="text-[11px] font-medium text-indigo-200/80 tracking-wide mx-8 flex items-center gap-3">
-                <span className="text-indigo-400 font-bold">IMDACS</span>
-                <span className="text-indigo-500/40">|</span>
-                <span>Kantor Akuntan Publik Budiandru dan Rekan</span>
-                <span className="text-indigo-500/40">|</span>
+              <span key={i} className="text-[11px] font-medium tracking-wide mx-8 flex items-center gap-3">
+                <span className="text-indigo-600 font-bold">IMDACS</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                <span className="text-slate-600">Kantor Akuntan Publik Budiandru dan Rekan</span>
+                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
                 <span className="text-slate-400">Grand Kartika, Jl. Jambore No.8A-9A, RT.5/RW.6, Cibubur, Kec. Ciracas, Kota Jakarta Timur, Daerah Khusus Ibukota Jakarta 13720</span>
               </span>
             ))}

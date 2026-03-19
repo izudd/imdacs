@@ -54,7 +54,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, appVersion }) => {
   const rl = roleLabel[user.role] || roleLabel.MARKETING;
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-2xl mx-auto">
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold text-slate-800">Pengaturan</h1>
         <p className="text-slate-500 text-sm mt-0.5">Kelola akun dan preferensi Anda</p>
