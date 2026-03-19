@@ -9,9 +9,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="mobile-web-app-capable" content="yes">
     <title>IMDACS - Marketing System</title>
+    <link rel="icon" type="image/jpeg" href="/logo.jpeg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
@@ -129,6 +131,89 @@
         background-size: 200% 100%;
         animation: shimmer 2s linear infinite;
       }
+
+      /* ═══ DARK MODE GLOBAL OVERRIDES ═══ */
+
+      .dark body { background-color: #0f172a; color: #e2e8f0; }
+
+      /* Backgrounds */
+
+      .dark .bg-slate-50, .dark .bg-slate-50\/50 { background-color: #0f172a !important; }
+
+      .dark .bg-white, .dark .bg-white\/80, .dark .bg-white\/90 { background-color: #1e293b !important; }
+
+      .dark .bg-slate-100 { background-color: #1e293b !important; }
+
+      /* Text */
+
+      .dark .text-slate-800, .dark .text-slate-900 { color: #f1f5f9 !important; }
+
+      .dark .text-slate-700 { color: #cbd5e1 !important; }
+
+      .dark .text-slate-600 { color: #94a3b8 !important; }
+
+      .dark .text-slate-500 { color: #64748b !important; }
+
+      .dark .text-slate-400 { color: #64748b !important; }
+
+      /* Borders */
+
+      .dark .border-slate-100, .dark .border-slate-200, .dark .border-slate-200\/80 { border-color: #334155 !important; }
+
+      .dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]),
+      .dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) { border-color: #334155 !important; }
+
+      /* Inputs */
+
+      .dark .bg-slate-50 input, .dark .bg-slate-50 select, .dark .bg-slate-50 textarea,
+      .dark input.bg-slate-50, .dark select.bg-slate-50, .dark textarea.bg-slate-50 {
+        background-color: #0f172a !important; color: #e2e8f0 !important; border-color: #475569 !important;
+      }
+
+      /* Cards & shadows */
+
+      .dark .shadow-sm, .dark .shadow-md { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
+
+      .dark .card-hover:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.3) !important; }
+
+      /* Glass effect dark */
+
+      .dark .glass-light { background: rgba(30,41,59,0.9) !important; }
+
+      /* Scrollbar dark */
+
+      .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+      .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+      /* Sub-backgrounds (50 tints used in status cards etc) */
+
+      .dark .bg-green-50, .dark .bg-green-50\/50 { background-color: rgba(34,197,94,0.1) !important; }
+
+      .dark .bg-red-50, .dark .bg-red-50\/50 { background-color: rgba(239,68,68,0.1) !important; }
+
+      .dark .bg-amber-50, .dark .bg-amber-50\/50 { background-color: rgba(245,158,11,0.1) !important; }
+
+      .dark .bg-blue-50 { background-color: rgba(59,130,246,0.1) !important; }
+
+      .dark .bg-purple-50 { background-color: rgba(139,92,246,0.1) !important; }
+
+      .dark .bg-indigo-50 { background-color: rgba(99,102,241,0.1) !important; }
+
+      .dark .bg-orange-50 { background-color: rgba(249,115,22,0.1) !important; }
+
+      .dark .bg-pink-50 { background-color: rgba(236,72,153,0.1) !important; }
+
+      /* Table headers */
+
+      .dark .bg-slate-50\/80 { background-color: #1e293b !important; }
+
+      /* Shimmer dark */
+
+      .dark .shimmer-bg {
+        background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+        background-size: 200% 100%;
+      }
     </style>
 
 <link rel="stylesheet" href="/index.css">
@@ -142,7 +227,7 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="/assets/index-BzPF4kzL.js"></script>
+  <script type="module" crossorigin src="/assets/index-DcxT2ko5.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
