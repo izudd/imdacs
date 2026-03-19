@@ -51,6 +51,56 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
   // Reset project tracking page when filters change
   useEffect(() => { setProjectPage(1); }, [projectSearch, projectFilterMarketing, projectFilterStatus]);
 
+  // Calendar state
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+
+  const calDays = useMemo(() => {
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const prevDays = new Date(calYear, calMonth, 0).getDate();
+
+    // Count activities per day
+    const actCounts: Record<string, number> = {};
+    allMyActivities.forEach(a => { actCounts[a.date] = (actCounts[a.date] || 0) + 1; });
+
+    const days: { day: number; current: boolean; date: string; count: number }[] = [];
+    // Previous month filler
+    for (let i = firstDay - 1; i >= 0; i--) {
+      const d = prevDays - i;
+      const m = calMonth === 0 ? 11 : calMonth - 1;
+      const y = calMonth === 0 ? calYear - 1 : calYear;
+      const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ day: d, current: false, date: ds, count: actCounts[ds] || 0 });
+    }
+    // Current month
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ day: d, current: true, date: ds, count: actCounts[ds] || 0 });
+    }
+    // Next month filler
+    const remaining = 42 - days.length;
+    for (let d = 1; d <= remaining; d++) {
+      const m = calMonth === 11 ? 0 : calMonth + 1;
+      const y = calMonth === 11 ? calYear + 1 : calYear;
+      const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push({ day: d, current: false, date: ds, count: actCounts[ds] || 0 });
+    }
+    return days;
+  }, [calMonth, calYear, allMyActivities]);
+
+  const calMonthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  const prevMonth = () => {
+    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
+    else setCalMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
+    else setCalMonth(m => m + 1);
+  };
+  const goToday = () => { setCalMonth(new Date().getMonth()); setCalYear(new Date().getFullYear()); };
+
   // Manager Notes (for marketing users)
   const [managerNotes, setManagerNotes] = useState<ManagerNote[]>([]);
 
@@ -360,6 +410,70 @@ const Dashboard: React.FC<DashboardProps> = ({ user, clients, activities, users 
             }{!isManager && '%'}
           </p>
           <p className="text-xs text-indigo-200 mt-1">{isManager ? 'Marketing members' : 'Conversion rate'}</p>
+        </div>
+      </div>
+
+      {/* Activity Calendar */}
+      <div className="bg-white p-4 lg:p-5 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+            <i className="fa-solid fa-calendar-days text-indigo-500"></i>
+            Kalender Aktivitas
+          </h3>
+          <div className="flex items-center gap-1">
+            <button onClick={prevMonth} className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors">
+              <i className="fa-solid fa-chevron-left text-[10px]"></i>
+            </button>
+            <button onClick={goToday} className="px-3 py-1 rounded-lg text-[11px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors">
+              {calMonthNames[calMonth]} {calYear}
+            </button>
+            <button onClick={nextMonth} className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-600 flex items-center justify-center transition-colors">
+              <i className="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
+          </div>
+        </div>
+        {/* Day headers */}
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(d => (
+            <div key={d} className="text-center text-[9px] font-bold text-slate-400 uppercase py-1">{d}</div>
+          ))}
+        </div>
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {calDays.map((d, i) => {
+            const isToday = d.date === today;
+            return (
+              <div key={i} className={`relative aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-all ${
+                !d.current ? 'text-slate-300' :
+                isToday ? 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-500/30' :
+                d.count > 0 ? 'bg-indigo-50 text-indigo-700 font-semibold' :
+                'text-slate-600 hover:bg-slate-50'
+              }`}>
+                <span className={isToday ? 'text-xs' : 'text-[11px]'}>{d.day}</span>
+                {d.count > 0 && !isToday && (
+                  <div className="absolute bottom-0.5 flex gap-0.5">
+                    {Array.from({ length: Math.min(d.count, 3) }).map((_, j) => (
+                      <div key={j} className="w-1 h-1 rounded-full bg-indigo-400"></div>
+                    ))}
+                  </div>
+                )}
+                {d.count > 0 && isToday && (
+                  <span className="text-[8px] text-indigo-200 font-normal">{d.count} log</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-slate-100">
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-indigo-600"></div>
+            <span className="text-[10px] text-slate-500">Hari ini</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded bg-indigo-50 border border-indigo-200"></div>
+            <span className="text-[10px] text-slate-500">Ada aktivitas</span>
+          </div>
         </div>
       </div>
 

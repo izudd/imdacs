@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import * as api from '../services/apiService';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SettingsProps {
   user: User;
@@ -18,6 +19,7 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, appVersion }) => {
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const { isDark, toggle: toggleTheme } = useTheme();
 
   const showStatus = (type: 'success' | 'error', msg: string) => {
     setStatus({ type, msg });
@@ -102,6 +104,29 @@ const Settings: React.FC<SettingsProps> = ({ user, onLogout, appVersion }) => {
                 <p className="text-sm font-semibold text-green-600">Aktif</p>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Theme Toggle */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-indigo-900/50 text-indigo-400' : 'bg-amber-50 text-amber-500'}`}>
+                <i className={`fa-solid ${isDark ? 'fa-moon' : 'fa-sun'} text-lg`}></i>
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-slate-800">Tampilan</h3>
+                <p className="text-[11px] text-slate-400">{isDark ? 'Mode gelap aktif' : 'Mode terang aktif'}</p>
+              </div>
+            </div>
+            <button onClick={toggleTheme}
+              className={`relative w-14 h-7 rounded-full transition-all duration-300 ${isDark ? 'bg-indigo-600' : 'bg-slate-200'}`}>
+              <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-md transition-all duration-300 flex items-center justify-center ${isDark ? 'left-[30px]' : 'left-0.5'}`}>
+                <i className={`fa-solid ${isDark ? 'fa-moon text-indigo-600' : 'fa-sun text-amber-500'} text-[10px]`}></i>
+              </div>
+            </button>
           </div>
         </div>
       </div>

@@ -14,9 +14,10 @@ import TeamView from './components/TeamView';
 import QuickLog from './components/QuickLog';
 import AuditorView from './components/AuditorView';
 import Settings from './components/Settings';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import logoImg from './public/logo.jpeg';
 
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const EOD_REMINDER_HOUR = 16;
 const EOD_REMINDER_MINUTE = 30;
 
@@ -285,7 +286,7 @@ const App: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
         {/* Top header for mobile */}
-        <header className="sticky top-0 z-30 bg-white/80 glass-light border-b border-slate-100 px-4 py-3 lg:hidden">
+        <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 glass-light border-b border-slate-100 dark:border-slate-700 px-4 py-3 lg:hidden">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -307,9 +308,9 @@ const App: React.FC = () => {
 
         {/* Ticker bar */}
         {/* Ticker bar */}
-        <div className="bg-white border-b border-slate-100 overflow-hidden relative">
-          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white to-transparent z-10"></div>
-          <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white to-transparent z-10"></div>
+        <div className="bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 overflow-hidden relative">
+          <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white dark:from-slate-800 to-transparent z-10"></div>
+          <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white dark:from-slate-800 to-transparent z-10"></div>
           <div className="flex animate-marquee whitespace-nowrap py-2">
             {[0, 1].map(i => (
               <span key={i} className="text-[11px] font-medium tracking-wide mx-8 flex items-center gap-3">
@@ -339,7 +340,7 @@ const App: React.FC = () => {
         </main>
 
         {/* Mobile Bottom Navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-white/90 glass border-t border-slate-200/80 z-30 lg:hidden pb-safe">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-slate-900/90 glass border-t border-slate-200/80 dark:border-slate-700 z-30 lg:hidden pb-safe">
           <div className="flex items-center justify-around px-2 py-1">
             {filteredNav.map(item => (
               <button
