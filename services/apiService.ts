@@ -1,5 +1,5 @@
 
-import { User, Client, Activity, EODReport, ReportStatus, DeleteRequest } from '../types';
+import { User, Client, Activity, EODReport, ReportStatus, DeleteRequest, ManagerNote } from '../types';
 
 const API_BASE = '/api';
 
@@ -240,4 +240,30 @@ export const respondDeleteRequest = (id: string, action: 'approve' | 'reject') =
   request<DeleteRequest>('/delete_requests.php', {
     method: 'PUT',
     body: JSON.stringify({ id, action }),
+  });
+
+// ============ Manager Notes ============
+export const getManagerNotes = (params?: { marketing_id?: string }) => {
+  const qs = params?.marketing_id ? `?marketing_id=${params.marketing_id}` : '';
+  return request<ManagerNote[]>(`/manager_notes.php${qs}`);
+};
+
+export const getMyNotes = () =>
+  request<ManagerNote[]>('/manager_notes.php?for_me=1');
+
+export const sendManagerNote = (marketingId: string, tone: 'good' | 'warning' | 'urgent', message: string) =>
+  request<ManagerNote>('/manager_notes.php', {
+    method: 'POST',
+    body: JSON.stringify({ marketingId, tone, message }),
+  });
+
+export const markNoteRead = (id: number) =>
+  request<{ success: boolean }>('/manager_notes.php', {
+    method: 'PUT',
+    body: JSON.stringify({ id }),
+  });
+
+export const deleteManagerNote = (id: number) =>
+  request<{ success: boolean }>(`/manager_notes.php?id=${id}`, {
+    method: 'DELETE',
   });

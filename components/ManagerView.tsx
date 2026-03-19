@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { User, Client, Activity, EODReport, UserRole, ReportStatus, ClientStatus } from '../types';
+import { User, Client, Activity, EODReport, UserRole, ReportStatus, ClientStatus, ManagerNote } from '../types';
 import { REPORT_STATUS_BADGE } from '../constants';
 import * as api from '../services/apiService';
 
@@ -36,6 +36,13 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
   const [userError, setUserError] = useState('');
   const [userSuccess, setUserSuccess] = useState('');
 
+  // Manager Notes states
+  const [noteTone, setNoteTone] = useState<'good' | 'warning' | 'urgent'>('good');
+  const [noteMessage, setNoteMessage] = useState('');
+  const [noteSending, setNoteSending] = useState(false);
+  const [sentNotes, setSentNotes] = useState<ManagerNote[]>([]);
+  const [noteTarget, setNoteTarget] = useState<string>('');
+
   const loadUsers = useCallback(() => {
     api.getUsers().then(setManagedUsers).catch(console.error);
   }, []);
@@ -43,6 +50,41 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
   useEffect(() => {
     if (activeTab === 'users') loadUsers();
   }, [activeTab, loadUsers]);
+
+  // Load sent notes
+  const loadNotes = useCallback((marketingId?: string) => {
+    api.getManagerNotes(marketingId ? { marketing_id: marketingId } : undefined).then(setSentNotes).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      loadNotes(selectedMarketing !== 'all' ? selectedMarketing : undefined);
+    }
+  }, [activeTab, selectedMarketing, loadNotes]);
+
+  const handleSendNote = async () => {
+    const target = noteTarget || (selectedMarketing !== 'all' ? selectedMarketing : '');
+    if (!target) { alert('Pilih marketing terlebih dahulu'); return; }
+    if (!noteMessage.trim()) return;
+    setNoteSending(true);
+    try {
+      await api.sendManagerNote(target, noteTone, noteMessage.trim());
+      setNoteMessage('');
+      setNoteTone('good');
+      loadNotes(selectedMarketing !== 'all' ? selectedMarketing : undefined);
+    } catch (err: unknown) {
+      alert('Gagal kirim: ' + (err instanceof Error ? err.message : 'Unknown'));
+    } finally { setNoteSending(false); }
+  };
+
+  const handleDeleteNote = async (id: number) => {
+    try {
+      await api.deleteManagerNote(id);
+      setSentNotes(prev => prev.filter(n => n.id !== id));
+    } catch (err: unknown) {
+      alert('Gagal hapus: ' + (err instanceof Error ? err.message : 'Unknown'));
+    }
+  };
 
   const supervisors = useMemo(() => managedUsers.filter(u => u.role === UserRole.SUPERVISOR), [managedUsers]);
 
@@ -666,6 +708,103 @@ const ManagerView: React.FC<ManagerViewProps> = ({ user, users, clients, activit
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ═══ MANAGER NOTES SECTION ═══ */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+            <i className="fa-solid fa-paper-plane text-indigo-500"></i>
+            Kirim Catatan ke Marketing
+          </h3>
+          <p className="text-[11px] text-slate-400 mt-0.5">Berikan feedback atau arahan harian untuk tim</p>
+        </div>
+        <div className="p-5 space-y-4">
+          {/* Target marketing */}
+          {selectedMarketing === 'all' && (
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Pilih Marketing</label>
+              <select value={noteTarget} onChange={e => setNoteTarget(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300">
+                <option value="">— Pilih marketing —</option>
+                {marketingUsers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Tone selector */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Tone</label>
+            <div className="flex gap-2">
+              {([
+                { value: 'good' as const, icon: 'fa-solid fa-circle-check', label: 'Bagus', bg: 'bg-green-50 border-green-200 text-green-700', active: 'bg-green-100 border-green-400 ring-2 ring-green-500/20' },
+                { value: 'warning' as const, icon: 'fa-solid fa-triangle-exclamation', label: 'Perlu Perbaikan', bg: 'bg-amber-50 border-amber-200 text-amber-700', active: 'bg-amber-100 border-amber-400 ring-2 ring-amber-500/20' },
+                { value: 'urgent' as const, icon: 'fa-solid fa-fire', label: 'Urgent', bg: 'bg-red-50 border-red-200 text-red-700', active: 'bg-red-100 border-red-400 ring-2 ring-red-500/20' },
+              ]).map(t => (
+                <button key={t.value} onClick={() => setNoteTone(t.value)}
+                  className={`flex-1 px-3 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${noteTone === t.value ? t.active : t.bg} hover:scale-[1.02] active:scale-[0.98]`}>
+                  <i className={t.icon}></i>{t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Pesan</label>
+            <textarea value={noteMessage} onChange={e => setNoteMessage(e.target.value)}
+              placeholder="Tulis catatan untuk marketing..."
+              rows={3}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 resize-none" />
+          </div>
+
+          {/* Send button */}
+          <button onClick={handleSendNote} disabled={noteSending || !noteMessage.trim()}
+            className="w-full px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-500 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 text-sm flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed">
+            <i className={`fa-solid ${noteSending ? 'fa-spinner fa-spin' : 'fa-paper-plane'}`}></i>
+            {noteSending ? 'Mengirim...' : 'Kirim Catatan'}
+          </button>
+        </div>
+
+        {/* Sent notes history */}
+        {sentNotes.length > 0 && (
+          <div className="border-t border-slate-100">
+            <div className="p-4 pb-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Riwayat Catatan</p>
+            </div>
+            <div className="divide-y divide-slate-50 max-h-64 overflow-y-auto">
+              {sentNotes.slice(0, 10).map(note => {
+                const toneStyles = note.tone === 'good'
+                  ? { border: 'border-l-green-400', bg: 'bg-green-50/50', icon: 'fa-solid fa-circle-check text-green-500', badge: 'bg-green-100 text-green-700' }
+                  : note.tone === 'warning'
+                  ? { border: 'border-l-amber-400', bg: 'bg-amber-50/50', icon: 'fa-solid fa-triangle-exclamation text-amber-500', badge: 'bg-amber-100 text-amber-700' }
+                  : { border: 'border-l-red-400', bg: 'bg-red-50/50', icon: 'fa-solid fa-fire text-red-500', badge: 'bg-red-100 text-red-700' };
+                return (
+                  <div key={note.id} className={`p-4 ${toneStyles.bg} border-l-4 ${toneStyles.border}`}>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <i className={`${toneStyles.icon} text-xs`}></i>
+                        <span className="font-bold text-xs text-slate-800">{note.marketing_name}</span>
+                        {note.is_read ? (
+                          <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">Dibaca</span>
+                        ) : (
+                          <span className="text-[9px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-bold">Belum dibaca</span>
+                        )}
+                      </div>
+                      <button onClick={() => handleDeleteNote(note.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                        <i className="fa-solid fa-trash text-[10px]"></i>
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{note.message}</p>
+                    <p className="text-[9px] text-slate-400 mt-1.5">
+                      {new Date(note.created_at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       </>)}

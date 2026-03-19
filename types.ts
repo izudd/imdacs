@@ -113,6 +113,19 @@ export interface EODReport {
   submittedAt?: string;
 }
 
+export interface ManagerNote {
+  id: number;
+  manager_id: string;
+  marketing_id: string;
+  tone: 'good' | 'warning' | 'urgent';
+  message: string;
+  is_read: number;
+  read_at: string | null;
+  created_at: string;
+  manager_name?: string;
+  marketing_name?: string;
+}
+
 export interface DeleteRequest {
   id: string;
   clientId: string;
