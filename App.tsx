@@ -204,7 +204,7 @@ const App: React.FC = () => {
 
       {/* Sidebar - Desktop fixed, Mobile slide-in */}
       <aside className={`
-        fixed lg:sticky top-0 left-0 h-screen w-72 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950
+        fixed top-0 left-0 h-screen w-72 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950
         text-white flex flex-col z-50 shadow-2xl
         sidebar-transition
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -284,7 +284,7 @@ const App: React.FC = () => {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0 overflow-x-hidden lg:ml-72">
         {/* Top header for mobile */}
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 glass-light border-b border-slate-100 dark:border-slate-700 px-4 py-3 lg:hidden">
           <div className="flex items-center justify-between">
