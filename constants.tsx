@@ -29,5 +29,5 @@ export const REPORT_STATUS_BADGE: Record<ReportStatus, string> = {
   [ReportStatus.REVISION]: 'bg-red-100 text-red-600',
 };
 
-export const AUDITOR_TEAM_MEMBERS = ['Weni', 'Lativa', 'Nando'] as const;
+export const AUDITOR_TEAM_MEMBERS = ['Weni', 'Lativa', 'Kusuma'] as const;
 
