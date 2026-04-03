@@ -94,7 +94,7 @@ $fonntToken = $env['FONNTE_TOKEN'] ?? '';
 $waNumbers = [
     'Weni' => $env['WA_WENI'] ?? '',
     'Lativa' => $env['WA_LATIFAH'] ?? '',
-    'Nando' => $env['WA_NANDO'] ?? '',
+    'Kusuma' => $env['WA_KUSUMA'] ?? '',
 ];
 
 $targetWa = $waNumbers[$assignee] ?? '';
@@ -140,7 +140,7 @@ $smtpFromName = $env['SMTP_FROM_NAME'] ?? 'IMDACS System';
 $emailAddresses = [
     'Weni' => $env['EMAIL_WENI'] ?? '',
     'Lativa' => $env['EMAIL_LATIFAH'] ?? '',
-    'Nando' => $env['EMAIL_NANDO'] ?? '',
+    'Kusuma' => $env['EMAIL_KUSUMA'] ?? '',
 ];
 
 $targetEmail = $emailAddresses[$assignee] ?? '';

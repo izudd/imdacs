@@ -195,6 +195,30 @@ try {
         echo "<p>ℹ️ Table 'manager_notes' already exists - skipped</p>";
     }
 
+    // Migration 14: Add phone column to users
+    $stmt = $pdo->query("SHOW COLUMNS FROM users LIKE 'phone'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE users ADD COLUMN phone VARCHAR(30) DEFAULT '' AFTER avatar");
+        echo "<p>✅ Added 'phone' column to users</p>";
+    } else {
+        echo "<p>ℹ️ Column 'phone' already exists in users - skipped</p>";
+    }
+
+    // Migration 15: Rename user Nando → Kusuma + set phone
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE name LIKE '%Nando%' AND role = 'AUDITOR'");
+    $stmt->execute();
+    $nando = $stmt->fetch();
+    if ($nando) {
+        $newName = 'Kusuma';
+        $initials = 'K';
+        $avatar = "https://ui-avatars.com/api/?name={$initials}&background=" . substr(md5($newName), 0, 6) . "&color=fff&size=200";
+        $upd = $pdo->prepare("UPDATE users SET name = ?, avatar = ?, phone = ? WHERE id = ?");
+        $upd->execute([$newName, $avatar, '+62 895-4119-20019', $nando['id']]);
+        echo "<p>✅ Updated user Nando → Kusuma (phone: +62 895-4119-20019)</p>";
+    } else {
+        echo "<p>ℹ️ User 'Nando' (AUDITOR) not found - skipped</p>";
+    }
+
     echo "<br><h3>🎉 Migration Complete!</h3>";
 
 } catch (PDOException $e) {
