@@ -19,25 +19,11 @@ interface AuditorViewProps {
   users: User[];
   onEditClient: (client: Partial<Client> & { id: string }) => Promise<void>;
   onRefresh: () => void;
+  activeSubTab?: string;
 }
 
-type MainView = 'team' | 'unassigned' | 'monitra';
-type MonitraPage = 'dashboard' | 'pts' | 'assignments' | 'reports' | 'visits' | 'progress' | 'archive' | 'fullapp';
-
-const MONITRA_NAV: { key: MonitraPage; label: string; icon: string }[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie' },
-  { key: 'pts', label: 'Manajemen PT', icon: 'fa-building' },
-  { key: 'assignments', label: 'Assignments', icon: 'fa-link' },
-  { key: 'reports', label: 'Laporan Harian', icon: 'fa-clipboard' },
-  { key: 'visits', label: 'Kunjungan', icon: 'fa-location-dot' },
-  { key: 'progress', label: 'Monitor Laporan', icon: 'fa-chart-line' },
-  { key: 'archive', label: 'Arsip PT', icon: 'fa-box-archive' },
-  { key: 'fullapp', label: 'Full MONITRA', icon: 'fa-desktop' },
-];
-
-const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditClient, onRefresh }) => {
-  const [activeView, setActiveView] = useState<MainView>('team');
-  const [monitraPage, setMonitraPage] = useState<MonitraPage>('dashboard');
+const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditClient, onRefresh, activeSubTab = 'auditor' }) => {
+  const [internalView, setInternalView] = useState<'team' | 'unassigned'>('team');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [assignLoading, setAssignLoading] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -160,7 +146,7 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
       )}
 
       {/* Stats Cards — only show on team/unassigned views */}
-      {activeView !== 'monitra' && (
+      {!activeSubTab.startsWith('monitra-') && (
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
             <div className="flex items-center gap-3">
@@ -198,42 +184,35 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
         </div>
       )}
 
-      {/* Main Tab Switcher */}
-      <div className="flex items-center gap-2 bg-slate-100 rounded-xl p-1 w-fit">
-        <button
-          onClick={() => setActiveView('team')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeView === 'team' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <i className="fa-solid fa-users-gear mr-2 text-xs"></i>
-          Tim Board
-        </button>
-        <button
-          onClick={() => setActiveView('unassigned')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeView === 'unassigned' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <i className="fa-solid fa-inbox mr-2 text-xs"></i>
-          Belum Diassign
-          {totalUnassigned > 0 && (
-            <span className="ml-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{totalUnassigned}</span>
-          )}
-        </button>
-        <button
-          onClick={() => setActiveView('monitra')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeView === 'monitra' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <i className="fa-solid fa-satellite-dish mr-2 text-xs"></i>
-          MONITRA
-        </button>
-      </div>
+      {/* Tab Switcher - only for Tim Board / Belum Diassign */}
+      {!activeSubTab.startsWith('monitra-') && (
+        <div className="flex items-center gap-2 bg-slate-100 rounded-xl p-1 w-fit">
+          <button
+            onClick={() => setInternalView('team')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              internalView === 'team' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <i className="fa-solid fa-users-gear mr-2 text-xs"></i>
+            Tim Board
+          </button>
+          <button
+            onClick={() => setInternalView('unassigned')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              internalView === 'unassigned' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <i className="fa-solid fa-inbox mr-2 text-xs"></i>
+            Belum Diassign
+            {totalUnassigned > 0 && (
+              <span className="ml-2 bg-amber-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{totalUnassigned}</span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* ═══ TEAM BOARD ═══ */}
-      {activeView === 'team' && (
+      {!activeSubTab.startsWith('monitra-') && internalView === 'team' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {AUDITOR_TEAM_MEMBERS.map(member => {
             const memberClients = teamGroups[member] || [];
@@ -282,7 +261,7 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
       )}
 
       {/* ═══ UNASSIGNED ═══ */}
-      {activeView === 'unassigned' && (
+      {!activeSubTab.startsWith('monitra-') && internalView === 'unassigned' && (
         <div className="space-y-4">
           <div className="relative">
             <i className="fa-solid fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
@@ -330,47 +309,16 @@ const AuditorView: React.FC<AuditorViewProps> = ({ user, clients, users, onEditC
         </div>
       )}
 
-      {/* ═══ MONITRA SECTION ═══ */}
-      {activeView === 'monitra' && (
+      {/* ═══ MONITRA SECTION — driven by sidebar ═══ */}
+      {activeSubTab.startsWith('monitra-') && (
         <div className="space-y-4">
-          {/* MONITRA Sub-Navigation */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-2">
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-thin">
-              {MONITRA_NAV.map(nav => (
-                <button
-                  key={nav.key}
-                  onClick={() => setMonitraPage(nav.key)}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                    monitraPage === nav.key
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
-                      : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
-                  }`}
-                >
-                  <i className={`fa-solid ${nav.icon} text-[10px]`}></i>
-                  {nav.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* MONITRA Page Content */}
-          {monitraPage === 'dashboard' && <MonitraDashboard />}
-          {monitraPage === 'pts' && <MonitraPT />}
-          {monitraPage === 'assignments' && <MonitraAssignments />}
-          {monitraPage === 'reports' && <MonitraDailyReports />}
-          {monitraPage === 'visits' && <MonitraVisitLogs />}
-          {monitraPage === 'progress' && <MonitraProgressAudit />}
-          {monitraPage === 'archive' && <MonitraArchive />}
-          {monitraPage === 'fullapp' && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden" style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
-              <iframe
-                src="https://monitra.assetsmanagement.shop"
-                className="w-full h-full border-0"
-                title="MONITRA - Monitoring & Tracking Audit"
-                allow="clipboard-write"
-              />
-            </div>
-          )}
+          {activeSubTab === 'monitra-dashboard' && <MonitraDashboard />}
+          {activeSubTab === 'monitra-pts' && <MonitraPT />}
+          {activeSubTab === 'monitra-assignments' && <MonitraAssignments />}
+          {activeSubTab === 'monitra-reports' && <MonitraDailyReports readOnly />}
+          {activeSubTab === 'monitra-visits' && <MonitraVisitLogs />}
+          {activeSubTab === 'monitra-progress' && <MonitraProgressAudit />}
+          {activeSubTab === 'monitra-archive' && <MonitraArchive />}
         </div>
       )}
 

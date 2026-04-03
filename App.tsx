@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showEodReminder, setShowEodReminder] = useState(true);
   const [showEodPopup, setShowEodPopup] = useState(false);
+  const [monitraOpen, setMonitraOpen] = useState(false);
   const eodPopupShownRef = useRef(false);
 
   // Set default tab for AUDITOR role
@@ -185,6 +186,18 @@ const App: React.FC = () => {
     { id: 'settings', label: 'Pengaturan', icon: 'fa-solid fa-gear', mobileIcon: 'fa-solid fa-gear', roles: [UserRole.MARKETING, UserRole.SUPERVISOR, UserRole.MANAGER, UserRole.AUDITOR] },
   ];
 
+  const monitraSubItems = [
+    { id: 'monitra-dashboard', label: 'Dashboard', icon: 'fa-solid fa-chart-pie' },
+    { id: 'monitra-pts', label: 'Manajemen PT', icon: 'fa-solid fa-building' },
+    { id: 'monitra-assignments', label: 'Assignments', icon: 'fa-solid fa-link' },
+    { id: 'monitra-reports', label: 'Laporan Harian', icon: 'fa-solid fa-clipboard' },
+    { id: 'monitra-visits', label: 'Kunjungan', icon: 'fa-solid fa-location-dot' },
+    { id: 'monitra-progress', label: 'Monitor Laporan', icon: 'fa-solid fa-chart-line' },
+    { id: 'monitra-archive', label: 'Arsip PT', icon: 'fa-solid fa-box-archive' },
+  ];
+
+  const isAuditorTab = (tab: string) => tab === 'auditor' || tab.startsWith('monitra-');
+
   const filteredNav = navItems.filter(item => item.roles.includes(currentUser.role as UserRole));
 
   const handleNavClick = (id: string) => {
@@ -239,25 +252,64 @@ const App: React.FC = () => {
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-3 mb-2">Menu</p>
           <div className="space-y-1">
             {filteredNav.map(item => (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                  activeTab === item.id
-                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  activeTab === item.id ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/5'
-                }`}>
-                  <i className={`${item.icon} text-sm`}></i>
-                </div>
-                <span className="font-semibold text-sm">{item.label}</span>
-                {activeTab === item.id && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white"></div>
+              <React.Fragment key={item.id}>
+                <button
+                  onClick={() => { handleNavClick(item.id); if (item.id === 'auditor') setMonitraOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+                    (item.id === 'auditor' ? isAuditorTab(activeTab) : activeTab === item.id)
+                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-lg shadow-indigo-600/30'
+                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                    (item.id === 'auditor' ? isAuditorTab(activeTab) : activeTab === item.id) ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/5'
+                  }`}>
+                    <i className={`${item.icon} text-sm`}></i>
+                  </div>
+                  <span className="font-semibold text-sm">{item.label}</span>
+                  {(item.id === 'auditor' ? isAuditorTab(activeTab) : activeTab === item.id) && (
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white"></div>
+                  )}
+                </button>
+
+                {/* MONITRA dropdown for Auditor */}
+                {item.id === 'auditor' && currentUser.role === UserRole.AUDITOR && (
+                  <>
+                    <button
+                      onClick={() => setMonitraOpen(prev => !prev)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group ${
+                        activeTab.startsWith('monitra-')
+                          ? 'text-indigo-300'
+                          : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                        <i className="fa-solid fa-satellite-dish text-sm"></i>
+                      </div>
+                      <span className="font-semibold text-sm">MONITRA</span>
+                      <i className={`fa-solid fa-chevron-down text-[10px] ml-auto transition-transform duration-200 ${monitraOpen ? 'rotate-180' : ''}`}></i>
+                    </button>
+                    {monitraOpen && (
+                      <div className="ml-6 space-y-0.5 border-l-2 border-white/10 pl-2">
+                        {monitraSubItems.map(sub => (
+                          <button
+                            key={sub.id}
+                            onClick={() => handleNavClick(sub.id)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-left ${
+                              activeTab === sub.id
+                                ? 'bg-white/10 text-indigo-300 font-bold'
+                                : 'text-slate-500 hover:bg-white/5 hover:text-slate-300'
+                            }`}
+                          >
+                            <i className={`${sub.icon} text-[10px] w-4 text-center`}></i>
+                            <span className="text-xs font-medium">{sub.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
-              </button>
+              </React.Fragment>
             ))}
           </div>
         </nav>
@@ -334,7 +386,7 @@ const App: React.FC = () => {
             {activeTab === 'report' && <EndDayReport user={currentUser} clients={clients} activities={activities} onRefresh={handleRefreshData} onNavigate={setActiveTab} />}
             {activeTab === 'team' && <TeamView user={currentUser} users={users} clients={clients} activities={activities} />}
             {activeTab === 'oversight' && <ManagerView user={currentUser} users={users} clients={clients} activities={activities} />}
-            {activeTab === 'auditor' && <AuditorView user={currentUser} clients={clients} users={users} onEditClient={handleEditClient} onRefresh={handleRefreshData} />}
+            {isAuditorTab(activeTab) && <AuditorView user={currentUser} clients={clients} users={users} onEditClient={handleEditClient} onRefresh={handleRefreshData} activeSubTab={activeTab} />}
             {activeTab === 'settings' && <Settings user={currentUser} onLogout={logout} appVersion={APP_VERSION} />}
           </div>
         </main>

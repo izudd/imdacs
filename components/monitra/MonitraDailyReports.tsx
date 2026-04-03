@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as monitra from '../../services/monitraService';
 import type { AuditorReport, MonitaUser } from '../../services/monitraService';
 
-const MonitraDailyReports: React.FC = () => {
+const MonitraDailyReports: React.FC<{ readOnly?: boolean }> = ({ readOnly = false }) => {
   const [reports, setReports] = useState<AuditorReport[]>([]);
   const [users, setUsers] = useState<MonitaUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +224,7 @@ const MonitraDailyReports: React.FC = () => {
                           </div>
 
                           {/* Approve/Reject buttons */}
-                          {r.approval_status === 'Pending' && (
+                          {!readOnly && r.approval_status === 'Pending' && (
                             <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                               <button onClick={() => { setApproveModal({ report: r, action: 'Approved' }); setApproveNotes(''); }}
                                 className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/25">
