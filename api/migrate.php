@@ -204,19 +204,15 @@ try {
         echo "<p>ℹ️ Column 'phone' already exists in users - skipped</p>";
     }
 
-    // Migration 15: Rename user Nando → Kusuma + set phone
-    $stmt = $pdo->prepare("SELECT id FROM users WHERE name LIKE '%Nando%' AND role = 'AUDITOR'");
+    // Migration 15: Rename auditor assignee Nando → Kusuma in clients table
+    $stmt = $pdo->prepare("SELECT COUNT(*) as cnt FROM clients WHERE auditor_assignee = 'Nando'");
     $stmt->execute();
-    $nando = $stmt->fetch();
-    if ($nando) {
-        $newName = 'Kusuma';
-        $initials = 'K';
-        $avatar = "https://ui-avatars.com/api/?name={$initials}&background=" . substr(md5($newName), 0, 6) . "&color=fff&size=200";
-        $upd = $pdo->prepare("UPDATE users SET name = ?, avatar = ?, phone = ? WHERE id = ?");
-        $upd->execute([$newName, $avatar, '+62 895-4119-20019', $nando['id']]);
-        echo "<p>✅ Updated user Nando → Kusuma (phone: +62 895-4119-20019)</p>";
+    $count = $stmt->fetch()['cnt'];
+    if ($count > 0) {
+        $pdo->exec("UPDATE clients SET auditor_assignee = 'Kusuma' WHERE auditor_assignee = 'Nando'");
+        echo "<p>✅ Renamed auditor 'Nando' → 'Kusuma' in {$count} clients</p>";
     } else {
-        echo "<p>ℹ️ User 'Nando' (AUDITOR) not found - skipped</p>";
+        echo "<p>ℹ️ No clients with auditor_assignee = 'Nando' - skipped</p>";
     }
 
     echo "<br><h3>🎉 Migration Complete!</h3>";
